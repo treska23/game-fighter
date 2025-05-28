@@ -57,7 +57,7 @@ export default class FightScene extends Phaser.Scene {
     this.createEnemyAnimations();
 
     // Instancia el jugador con frame inicial 0
-    this.player = new Player(this, 100, 515, 'player_idle', 0);
+    this.player = new Player(this, 100, 515, 'player_idle', 0, this.playerHits);
     this.physics.add.collider(this.player, platforms);
 
     // Instancia el enemigo con frame inicial 0
@@ -108,6 +108,7 @@ export default class FightScene extends Phaser.Scene {
   }
 
   private createPlayerAnimations(): void {
+    
     this.anims.create({
       key: 'player_idle',
       frames: this.anims.generateFrameNumbers('player_idle', { start: 0, end: 1 }),
@@ -140,10 +141,11 @@ export default class FightScene extends Phaser.Scene {
     });
     this.anims.create({
       key: 'player_punch',
-      frames: this.anims.generateFrameNumbers('player_punch', { start: 0, end: 2 }),
+      frames: this.anims.generateFrameNumbers('player_punch', { start: 0, end: 1 }),
       frameRate: 8,
       repeat: 0
     });
+    console.log("Player punch animation exists?", this.anims.exists('player_punch'));
     this.anims.create({
       key: 'player_kick_light',
       frames: this.anims.generateFrameNumbers('player_kick_soft', { start: 0, end: 1 }),
