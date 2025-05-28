@@ -8,7 +8,15 @@ const config: Phaser.Types.Core.GameConfig = {
   width: 800,
   height: 600,
   parent: document.body,
-  scene: [BootScene, PreloadScene, FightScene],
+  backgroundColor: '#87CEEB',
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { x: 0, y: 0 }, // gravedad global (0 porque cada sprite pone la suya)
+      debug: false
+    }
+  },
+  scene: [BootScene, PreloadScene, FightScene]
 };
 
 new Phaser.Game(config);

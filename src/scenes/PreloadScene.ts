@@ -13,12 +13,13 @@ export default class PreloadScene extends Phaser.Scene {
     });
 
     // cSpell: ignore spritesheet
-    this.load.spritesheet('young',     'assets/young.png',     { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('young',     'assets/young/young.png',     { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet('detective', 'assets/detective/detective.png', { frameWidth: 48, frameHeight: 64 });
-    this.load.spritesheet('detective','assets/detective/detective_idle.png',{ frameWidth: 48, frameHeight: 64 });
-    this.load.spritesheet('detective','assets/detective/detective_locomotion.png',{ frameWidth: 48, frameHeight: 64 });
-    this.load.spritesheet('detective-punch','assets/detective/detective_punch.png',{ frameWidth: 48, frameHeight: 64 });
-    this.load.spritesheet('detective-kicks','assets/detective/detective_kicks.png',{ frameWidth: 48, frameHeight: 64 });
+    this.load.spritesheet('detective_idle','assets/detective/detective_idle.png',{ frameWidth: 48, frameHeight: 64 });
+    this.load.spritesheet('detective_locomotion','assets/detective/detective_locomotion.png',{ frameWidth: 48, frameHeight: 64 });
+    this.load.spritesheet('detective_punch_right','assets/detective/detective_punch.png',{ frameWidth: 48, frameHeight: 64 });
+    this.load.spritesheet('detective_kicks_light','assets/detective/detective_kicks_light.png',{ frameWidth: 48, frameHeight: 64 });
+    this.load.spritesheet('detective_kicks_tight','assets/detective/detective_kicks_tight.png',{ frameWidth: 48, frameHeight: 64 });
     this.load.spritesheet('detective_defense','assets/detective/detective_defense.png',{ frameWidth: 48, frameHeight: 64 });
     this.load.spritesheet('detective_damage','assets/detective/detective_damage.png',{ frameWidth: 48, frameHeight: 64 });
     this.load.spritesheet('detective_specials','assets/detective/detective_specials.png',{ frameWidth: 48, frameHeight: 64 });
