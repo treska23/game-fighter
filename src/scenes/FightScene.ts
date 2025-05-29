@@ -1,12 +1,28 @@
 import Phaser from 'phaser';
 import { Player } from '../game/Player';
+import { HitBox } from '../game/HitBox';   // ⬅️ nuevo import
+//import type { HitData } from '../game/HitBox';
+
 type AttackGroup = Phaser.Physics.Arcade.Group;
 
+type DamageableSprite = Phaser.Physics.Arcade.Sprite & {
+  health: number;
+  maxHealth: number;
+  takeDamage: (amount: number) => void;
+};
+
 export default class FightScene extends Phaser.Scene {
-  private player!: Phaser.Physics.Arcade.Sprite;
-  private enemy!: Phaser.Physics.Arcade.Sprite;
+  private player!: Player;              // ← tu clase Player             ★
+  private enemy!: DamageableSprite;     // ← alias recién creado       
+
   private playerHits!: AttackGroup;
 
+  // Gráficos para las barras
+  private playerHealthBar!: Phaser.GameObjects.Graphics;
+  private enemyHealthBar!: Phaser.GameObjects.Graphics;
+
+  // Le decimos a TS que enemy tendrá también health, maxHealth y takeDamage()
+  
   constructor() {
     super({ key: 'FightScene' });
   }
@@ -44,63 +60,155 @@ export default class FightScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Crea suelo si existe
-    this.add.image(400, 300, 'room_bg')
-        .setDisplaySize(800, 600)
-        .setScrollFactor(0);
-    const platforms = this.physics.add.staticGroup();
-    const ground = platforms.create(400, 568, 'ground') as Phaser.Physics.Arcade.Sprite;
-    ground.setDisplaySize(800, 64).refreshBody();
+   // 1️⃣  ―― FONDO y PLATAFORMAS ――――――――――――――――――――――――――――――――――――――
+   this.add.image(400, 300, 'room_bg')
+       .setDisplaySize(800, 600)
+       .setScrollFactor(0);
+
+   const platforms = this.physics.add.staticGroup();
+   platforms.create(400, 568, 'ground')
+            .setDisplaySize(800, 64)
+            .refreshBody();
+
+   // 2️⃣  ―― ANIMACIONES (jugador y enemigo) ―――――――――――――――――――――――――――
+   this.createPlayerAnimations();
+   this.createEnemyAnimations();
+
+   // 3️⃣  ―― GRUPO DE HIT-BOXES (antes de crear al Player) ――――――――――――――
+   this.playerHits = this.physics.add.group({
+     classType: HitBox,
+     allowGravity: false,
+     runChildUpdate: false
+   });
+
+   // 4️⃣  ―― JUGADOR (usa tu clase Player) ――――――――――――――――――――――――――――
+   this.player = new Player(this, 100, 515, 'player_idle', 0, this.playerHits);
+   this.player.setCollideWorldBounds(true);
+  (this.player.body as Phaser.Physics.Arcade.Body).setBounce(1, 0);
+   this.physics.add.collider(this.player, platforms);
+
+   // 5️⃣  ―― ENEMIGO “damageable” ――――――――――――――――――――――――――――――――――――
+   this.enemy = this.physics.add
+     .sprite(650, 500, 'detective_idle', 0)
+     .setFlipX(true) as DamageableSprite;
+
+   this.enemy.maxHealth = 100;
+   this.enemy.health    = 100;
+   this.enemy.takeDamage = (amount: number, stun = 180) => {
+     this.enemy.health = Phaser.Math.Clamp(
+       this.enemy.health - amount,
+       0,
+       this.enemy.maxHealth
+     );
+
+    this.enemy.play('enemy_hit_high', true);
+     
+    this.time.delayedCall(stun, () => {
+      if (this.enemy.health > 0) {
+      this.enemy.play('enemy_idle', true);
+        }
+    });
+
+    if (this.enemy.health === 0) {
+       this.enemy.play('enemy_ko', true);
+     }
+     this.enemy.emit('healthChanged', this.enemy.health);
+   };
+
+   this.physics.add.collider(this.enemy, platforms);
+
+    const eBody = this.enemy.body as Phaser.Physics.Arcade.Body;
+    eBody.setCollideWorldBounds(true)
+         .setBounce(0.2, 0)   // rebote suave
+         .setDrag(200, 0);    // lo frena poco a poco
+
+  // 6️⃣  ―― SOLAPAMIENTO (golpes del jugador → enemigo) ―――――――――――――――――
+   this.physics.add.overlap(
+    this.playerHits,
+    this.enemy,
+    (hitObj, enemySprite) => {
+      if (!(hitObj instanceof HitBox)) return;
+      const hit = hitObj as HitBox;
+    
+      if ((hit as any).hasHit) return;
+      (hit as any).hasHit = true;
+      hit.destroy();
+      console.log('[Overlap] aplicando golpe', hit.hitData.damage);
+      // Aplicamos el golpe correctamente al sprite:
+      hit.applyTo(enemySprite as DamageableSprite);
+    },
+    undefined,
+    this
+  );
   
-    // Animaciones jugador y enemigo...
-    this.createPlayerAnimations();
-    this.createEnemyAnimations();
+   // 7️⃣  ―― BARRAS DE VIDA + LISTENERS ――――――――――――――――――――――――――――――
+   this.playerHealthBar = this.add.graphics();
+   this.enemyHealthBar  = this.add.graphics();
+   this.drawHealthBar(this.playerHealthBar, 20, 20,  this.player.health);
+   this.drawHealthBar(this.enemyHealthBar,  580, 20, this.enemy.health);
 
-    // Instancia el jugador con frame inicial 0
-    this.player = new Player(this, 100, 515, 'player_idle', 0, this.playerHits);
-    this.physics.add.collider(this.player, platforms);
+   // 7️⃣  ―― BARRAS DE VIDA + LISTENERS ――――――――――――――――――――――――――――――――
+  this.player.on('healthChanged', (hp: number) => {          // ← tipo aquí
+    this.drawHealthBar(this.playerHealthBar, 20, 20, hp);
+  });
 
-    // Instancia el enemigo con frame inicial 0
+  this.enemy.on('healthChanged', (hp: number) => {           // ← …y aquí
+    this.drawHealthBar(this.enemyHealthBar, 580, 20, hp);
+  });
+
+   // 8️⃣  ―― INPUT DE ANIMACIONES DEL ENEMIGO ――――――――――――――――――――――――
+   const ATTACK_ANIMS = ['enemy_punch', 'enemy_kick_light', 'enemy_kick_strong'];
+
+   this.input.keyboard?.on('keydown', (evt: KeyboardEvent) => {
+     const map: Record<string, string> = {
+       P: 'enemy_idle',
+       K: 'enemy_walk',
+       V: 'enemy_jump',
+       L: 'enemy_punch',
+       O: 'enemy_kick_light',
+       I: 'enemy_kick_strong',
+       H: 'enemy_guard_high',
+       J: 'enemy_guard_low',
+       U: 'enemy_hit_high',
+       Y: 'enemy_hit_low',
+       W: 'enemy_ko',
+       B: 'enemy_special'
+     };
+
+     const anim = map[evt.key.toUpperCase()];
+     if (!anim) return;
+
+     this.enemy.play(anim, true);
+     (this.enemy as any).isAttacking = ATTACK_ANIMS.includes(anim);
+
+     this.enemy.once(
+       Phaser.Animations.Events.ANIMATION_COMPLETE,
+       () => ((this.enemy as any).isAttacking = false)
+     );
+    
+     this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
+    
     this.enemy = this.physics.add
       .sprite(650, 500, 'detective_idle', 0)
-      .setImmovable(true)
-      .setFlipX(true);
-    this.physics.add.collider(this.enemy, platforms);
-    const ATTACK_ANIMS = ['enemy_punch', 'enemy_kick_light', 'enemy_kick_strong'];
-    
-    // Input para animaciones de enemigo
-     this.input.keyboard?.on('keydown', (evt: KeyboardEvent) => {
-      const map: Record<string, string> = {
-     
-        P: 'enemy_idle',
-        K: 'enemy_locomotion',
-        V: 'enemy_jump',
+      .setFlipX(true) as DamageableSprite;
+      
+   
+   });
+  }
 
-        L: 'enemy_punch',
-        O: 'enemy_kick_light',
-        I: 'enemy_kick_strong',
 
-        H: 'enemy_guard_high',
-        J: 'enemy_guard_low',
-        U: 'enemy_hit_high',
-        Y: 'enemy_hit_low',
-        W: 'enemy_ko',
+  private drawHealthBar(bar: Phaser.GameObjects.Graphics, x: number, y: number, health: number) {
+    const width = 200;
+    const height = 20;
+    const pct = Phaser.Math.Clamp(health / 100, 0, 1);
 
-        B: 'enemy_special'
-      };
-      const anim = map[evt.key.toUpperCase()];
-      if (!anim) return;
-
-      this.enemy.play(anim, true);
-
-      // ——— flag isAttacking ———
-      (this.enemy as any).isAttacking = ATTACK_ANIMS.includes(anim);
-
-      // cuando termine la animación, desactiva el flag
-      this.enemy.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-        (this.enemy as any).isAttacking = false;
-      });
-    });
+    bar.clear();
+    // fondo
+    bar.fillStyle(0x000000);
+    bar.fillRect(x - 2, y - 2, width + 4, height + 4);
+    // barra roja
+    bar.fillStyle(0xff0000);
+    bar.fillRect(x, y, pct * width, height);
   }
 
   update(): void {
@@ -179,19 +287,10 @@ export default class FightScene extends Phaser.Scene {
 
     // FightScene.create()
     this.playerHits = this.physics.add.group({
-      classType: Phaser.GameObjects.Zone,   // rectángulo invisible
+      classType: HitBox,   // rectángulo invisible
       runChildUpdate: false,
       allowGravity: false
     });
-
-    // solapamiento hit-box ↔ enemigo
-    this.physics.add.overlap(
-      this.playerHits,
-      this.enemy,
-      this.onPlayerHitEnemy,
-      undefined,
-      this
-    );
   }
 
   // listener sencillo
@@ -221,4 +320,6 @@ export default class FightScene extends Phaser.Scene {
     this.anims.create({ key: 'enemy_victory',   frames: [{ key: 'detective_specials', frame: 4 }],              frameRate: 1, repeat: 0 });
     this.anims.create({ key: 'enemy_defeat',    frames: [{ key: 'detective_specials', frame: 5 }],              frameRate: 1, repeat: 0 });
   }
+
+  
 }

@@ -1,6 +1,8 @@
 // ==== src/game/Player.ts ====
 
 import Phaser from 'phaser';
+import { HitBox } from './HitBox';   // ⬅️ nuevo import
+import type { HitData } from './HitBox';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -11,7 +13,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
                        kickH: Phaser.Input.Keyboard.Key; };
   private hitGroup: Phaser.Physics.Arcade.Group;
   private attackState: 'idle' | 'attack' = 'idle';
-  
+  public health: number = 100;
+  public maxHealth: number = 100;
+
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -38,65 +42,109 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       };
     }
 
-  private startAttack(anim: string, hitboxWidth: number, duration = 120) {
+    public takeDamage(amount: number, stun = 180) {
+      this.health = Phaser.Math.Clamp(this.health - amount, 0, this.maxHealth);
+      this.anims.play('player_damage', true);
+
+      this.scene.time.delayedCall(stun, () => {if (this.health > 0) this.play('enemy_idle', true);});
+
+      // Si llega a cero, KO
+      if (this.health === 0) {
+        this.anims.play('player_ko', true);
+        this.setVelocity(0, 0);
+        // aquí podrías deshabilitar controles o disparar "game over"
+      }
+
+      // Emitimos un evento para que la escena actualice el HUD
+      this.emit('healthChanged', this.health);
+    }
+
+  private startAttack(anim: string,hitboxWidth: number,duration = 120,hitData: Partial<HitData> = {}) {
       this.attackState = 'attack';
       const playerBody = this.body as Phaser.Physics.Arcade.Body;
+
       if (playerBody.blocked.down) {
         this.setVelocityX(0);
       }
     
       this.anims.play(anim, true);
-
-      /* hit-box: aparece justo delante */
+    
+      //  ► Creamos la HitBox con datos mezclados
       const dir = this.flipX ? -1 : 1;
-      const zone = this.scene.add.zone(
-       this.x + dir * 24,
-       this.y - 16,
-       hitboxWidth,
-       24);
 
-      this.scene.physics.add.existing(zone);
+      const defaultHit: HitData = {
+        damage:   8,
+        knockBack: new Phaser.Math.Vector2(dir * 20, 0),
+        hitStun:  180,
+        guardStun: 6,
+        height:  'high',
+        owner:   'player'
+      };
       
-       const zoneBody = zone.body as Phaser.Physics.Arcade.Body;
-       zoneBody.setAllowGravity(false);
-       zoneBody.setEnable(true);
+      const hb = new HitBox(
+        this.scene,
+        this.x + dir * 24,
+        this.y - 16,
+        hitboxWidth,
+        24,
+        { ...defaultHit, ...hitData }
+      );
+      // hb.setFillStyle(0xff0000, 0.3); // semitransparente (removed, not available on HitBox)
+      hb.setDepth(10);
+      this.hitGroup.add(hb);
 
-      // 6) Lo añado a tu grupo de ataques
-      this.hitGroup.add(zone);
+      this.scene.physics.add.overlap(
+        hb,
+        (this.scene as any).enemy as Phaser.Physics.Arcade.Sprite,
+        (_zone, enemySprite) => {
+          const hit = _zone as HitBox;
+          if ((hit as any).hasHit) return;
+          (hit as any).hasHit = true;
+          hit.destroy();                // ya no hará solapamientos extra
+          console.log('Golpe! daño =', hit.hitData.damage);
+          hit.applyTo(enemySprite as any);
+        },
+        undefined,
+        this
+      );
 
-      // 7) Lo destruyo tras la duración
-      this.scene.time.delayedCall(duration, () => zone.destroy());
-
-      // 8) Cuando termine la animación exacta, vuelvo a “idle”
+      this.scene.time.delayedCall(duration, () => hb.destroy());
+    
+      //  ► Cuando termine la animación, volvemos a idle
       this.once(
-      Phaser.Animations.Events.ANIMATION_COMPLETE,
-      (animation: Phaser.Animations.Animation) => {
-        if (animation.key === anim) {
-          this.attackState = 'idle';
+        Phaser.Animations.Events.ANIMATION_COMPLETE,
+        (animation: Phaser.Animations.Animation) => {
+          if (animation.key === anim) {
+            this.attackState = 'idle';
+          }
         }
-      }
+      );
+    }
+
+private tryAttack(): boolean {
+  if (this.attackState !== 'idle') return false;
+
+  const dir = this.flipX ? -1 : 1;
+
+  if (Phaser.Input.Keyboard.JustDown(this.attackKeys.punch)) {
+      this.startAttack('player_punch',      26, 120, { damage: 6, hitStun:  120});
+      return true;
+  }
+  if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickL)) {
+      this.startAttack('player_kick_light', 32, 120, { damage: 10, hitStun:  180});
+      return true;
+  }
+  if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickH)) {
+    this.startAttack(
+      'player_kick_tight',
+      36,
+      120,
+      { damage: 14, knockBack: new Phaser.Math.Vector2(dir * 30, 0),hitStun:  260 }
     );
-  }
-
-  private tryAttack(): boolean {
-   if (this.attackState  !== 'idle') return false;
-
-   if (Phaser.Input.Keyboard.JustDown(this.attackKeys.punch)) {
-    console.log('=== PUNCH PRESSED ===');
-     this.startAttack('player_punch', 26);
-     return true;
-   }
-   if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickL)) {
-     this.startAttack('player_kick_light', 32);
-     return true;
-   }
-   if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickH)) {
-     this.startAttack('player_kick_tight', 36);
-     return true;
-   }
-   return false;
-  }
-
+      return true;
+    }
+  return false;
+}
 
  update(): void {
   // si estamos atacando, no tocar nada hasta que termine
