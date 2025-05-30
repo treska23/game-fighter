@@ -46,13 +46,23 @@ export class HitBox extends Phaser.GameObjects.Zone {
   }
 
   applyTo(target: DamageableSprite) {
+    // prevenir dobles impactos
+    if ((this as any).hasHit) return;
+    (this as any).hasHit = true;
+
+    // 1️⃣ Primero pegamos
     target.takeDamage(this.hitData.damage, this.hitData.hitStun);
-    // knock-back en el sprite
+
+    // 2️⃣ Knock-back
     target.setVelocity(this.hitData.knockBack.x, this.hitData.knockBack.y);
 
+    // 3️⃣ No volvamos a idle antes de tiempo
     target.scene.time.delayedCall(this.hitData.hitStun, () => {
       (target.body as Phaser.Physics.Arcade.Body).setVelocityX(0);
-      if ((target as any).health > 0) (target as any).play("enemy_idle", true);
+      // el propio takeDamage se encargó de reproducir idle/KO
     });
+
+    // destruimos la zona
+    this.destroy();
   }
 }
