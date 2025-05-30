@@ -80,6 +80,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     //  ► Creamos la HitBox con datos mezclados
     const dir = this.flipX ? -1 : 1;
+    const inAir = !(this.body as Phaser.Physics.Arcade.Body).blocked.down;
 
     const defaultHit: HitData = {
       damage: 8,
@@ -90,10 +91,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       owner: "player",
     };
 
+    const yOffset = inAir ? -32 /* más alto */ : -16; /* suelo */
+
     const hb = new HitBox(
       this.scene,
       this.x + dir * 24,
-      this.y - 16,
+      this.y - yOffset,
       hitboxWidth,
       24,
       { ...defaultHit, ...hitData }
@@ -134,25 +137,45 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.attackState !== "idle") return false;
 
     const dir = this.flipX ? -1 : 1;
+    const inAir = !(this.body as Phaser.Physics.Arcade.Body).blocked.down;
 
     if (Phaser.Input.Keyboard.JustDown(this.attackKeys.punch)) {
-      this.startAttack("player_punch", 26, 120, { damage: 6, hitStun: 120 });
+      this.startAttack("player_punch", 26, 120, {
+        damage: 6,
+        hitStun: 120,
+        knockBack: new Phaser.Math.Vector2(dir * 40, 0),
+      });
       return true;
     }
+
     if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickL)) {
       this.startAttack("player_kick_light", 32, 120, {
         damage: 10,
         hitStun: 180,
+        knockBack: new Phaser.Math.Vector2(dir * 40, 0),
       });
       return true;
     }
+
     if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickH)) {
-      this.startAttack("player_kick_tight", 36, 120, {
-        damage: 14,
-        knockBack: new Phaser.Math.Vector2(dir * 30, 0),
-        hitStun: 260,
-      });
-      return true;
+      // if inAir, use a vertical knockback and longer stun
+      if (inAir) {
+        this.startAttack("player_kick_tight", 36, 150, {
+          damage: 12,
+          knockBack: new Phaser.Math.Vector2(dir * 10, -200),
+          hitStun: 300,
+          height: "mid",
+        });
+        return true;
+      } else {
+        // grounded heavy kick
+        this.startAttack("player_kick_tight", 36, 120, {
+          damage: 14,
+          knockBack: new Phaser.Math.Vector2(dir * 30, 0),
+          hitStun: 260,
+        });
+        return true;
+      }
     }
     return false;
   }

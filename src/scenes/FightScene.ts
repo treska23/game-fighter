@@ -199,24 +199,33 @@ export default class FightScene extends Phaser.Scene {
 
     const eBody = this.enemy.body as Phaser.Physics.Arcade.Body;
     eBody
+      .setAllowGravity(true) // que sí note la gravedad
+      .setGravityY(980) // idéntico al Player
       .setCollideWorldBounds(true)
-      .setBounce(0.2, 0) // rebote suave
-      .setDrag(200, 0); // lo frena poco a poco
+      .setBounce(0.2, 0)
+      .setDrag(200, 0);
 
     // 6️⃣  ―― SOLAPAMIENTO (golpes del jugador → enemigo) ―――――――――――――――――
     this.physics.add.overlap(
       this.playerHits,
       this.enemy,
-      (hitObj, enemySprite) => {
+      (hitObj, enemyGO) => {
         if (!(hitObj instanceof HitBox)) return;
         const hit = hitObj as HitBox;
 
         if ((hit as any).hasHit) return;
+
+        // casteamos el segundo parámetro a Sprite
+        const sprite = enemyGO as Phaser.Physics.Arcade.Sprite;
+        const eBody = sprite.body as Phaser.Physics.Arcade.Body;
+
+        const isAirHit = hit.hitData.knockBack.y < 0; // criterio simple
+        if (isAirHit && eBody.blocked.down) return;
+
         (hit as any).hasHit = true;
         hit.destroy();
-        console.log("[Overlap] aplicando golpe", hit.hitData.damage);
         // Aplicamos el golpe correctamente al sprite:
-        hit.applyTo(enemySprite as DamageableSprite);
+        hit.applyTo(enemyGO as DamageableSprite);
       },
       undefined,
       this
@@ -278,6 +287,8 @@ export default class FightScene extends Phaser.Scene {
       this.enemy = this.physics.add
         .sprite(650, 500, "detective_idle", 0)
         .setFlipX(true) as DamageableSprite;
+      const eBody = this.enemy.body as Phaser.Physics.Arcade.Body;
+      eBody.setGravityY(980);
     });
   }
 
