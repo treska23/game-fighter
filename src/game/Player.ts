@@ -112,15 +112,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const hit = _zone as HitBox;
         if ((hit as any).hasHit) return;
         (hit as any).hasHit = true;
-        hit.destroy(); // ya no hará solapamientos extra
-        console.log("Golpe! daño =", hit.hitData.damage);
         hit.applyTo(enemySprite as any);
       },
       undefined,
       this
     );
 
-    this.scene.time.delayedCall(duration, () => hb.destroy());
+    this.scene.time.delayedCall(duration, () => {
+      if (hb.active) hb.destroy();
+    });
 
     //  ► Cuando termine la animación, volvemos a idle
     this.once(
@@ -180,7 +180,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return false;
   }
 
-  update(): void {
+  public update(time: number, delta: number): void {
     // si estamos atacando, no tocar nada hasta que termine
     if (this.attackState === "attack") {
       return;

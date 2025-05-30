@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { Player } from "../game/Player";
 import { HitBox } from "../game/HitBox"; // ⬅️ nuevo import
+import { Enemy } from "../game/Enemy";
+
 //import type { HitData } from '../game/HitBox';
 
 type AttackGroup = Phaser.Physics.Arcade.Group;
@@ -97,7 +99,7 @@ export default class FightScene extends Phaser.Scene {
     this.load.spritesheet(
       "detective_locomotion",
       "/assets/detective/detective_locomotion.png",
-      { frameWidth: 48, frameHeight: 64 }
+      { frameWidth: 64, frameHeight: 64 }
     );
     this.load.spritesheet(
       "detective_punch",
@@ -141,7 +143,10 @@ export default class FightScene extends Phaser.Scene {
   }
 
   create(): void {
-    // 1️⃣  ―― FONDO y PLATAFORMAS ――――――――――――――――――――――――――――――――――――――
+    // 0️⃣ — Carga animaciones (solo una vez)
+    Enemy.createAnimations(this.anims);
+
+    // 1️⃣ — Fondo y plataformas
     this.add
       .image(400, 300, "room_bg")
       .setDisplaySize(800, 600)
@@ -150,145 +155,99 @@ export default class FightScene extends Phaser.Scene {
     const platforms = this.physics.add.staticGroup();
     platforms.create(400, 568, "ground").setDisplaySize(800, 64).refreshBody();
 
-    // 2️⃣  ―― ANIMACIONES (jugador y enemigo) ―――――――――――――――――――――――――――
+    // 2️⃣ — Animaciones jugador + enemigo
     this.createPlayerAnimations();
     this.createEnemyAnimations();
 
-    // 3️⃣  ―― GRUPO DE HIT-BOXES (antes de crear al Player) ――――――――――――――
+    // 3️⃣ — Grupo de hit‐boxes
     this.playerHits = this.physics.add.group({
       classType: HitBox,
       allowGravity: false,
       runChildUpdate: false,
     });
 
-    // 4️⃣  ―― JUGADOR (usa tu clase Player) ――――――――――――――――――――――――――――
+    // 4️⃣ — Crear jugador
     this.player = new Player(this, 100, 515, "player_idle", 0, this.playerHits);
     this.player.setCollideWorldBounds(true);
     (this.player.body as Phaser.Physics.Arcade.Body).setBounce(1, 0);
     this.physics.add.collider(this.player, platforms);
 
-    // 5️⃣  ―― ENEMIGO “damageable” ――――――――――――――――――――――――――――――――――――
-    this.enemy = this.physics.add
-      .sprite(650, 500, "detective_idle", 0)
-      .setFlipX(true) as DamageableSprite;
-
-    this.enemy.maxHealth = 100;
-    this.enemy.health = 100;
-    this.enemy.takeDamage = (amount: number, stun = 180) => {
-      this.enemy.health = Phaser.Math.Clamp(
-        this.enemy.health - amount,
-        0,
-        this.enemy.maxHealth
-      );
-
-      this.enemy.play("enemy_hit_high", true);
-
-      this.time.delayedCall(stun, () => {
-        if (this.enemy.health > 0) {
-          this.enemy.play("enemy_idle", true);
-        }
-      });
-
-      if (this.enemy.health === 0) {
-        this.enemy.play("enemy_ko", true);
-      }
-      this.enemy.emit("healthChanged", this.enemy.health);
-    };
-
+    // 5️⃣ — Crear enemigo
+    this.enemy = new Enemy(this, 650, 500, "detective_idle", 0).setFlipX(
+      true
+    ) as DamageableSprite;
+    (this.enemy as Enemy).setTarget(this.player);
     this.physics.add.collider(this.enemy, platforms);
 
-    const eBody = this.enemy.body as Phaser.Physics.Arcade.Body;
-    eBody
-      .setAllowGravity(true) // que sí note la gravedad
-      .setGravityY(980) // idéntico al Player
-      .setCollideWorldBounds(true)
-      .setBounce(0.2, 0)
-      .setDrag(200, 0);
-
-    // 6️⃣  ―― SOLAPAMIENTO (golpes del jugador → enemigo) ―――――――――――――――――
+    // 6️⃣ — Overlap: jugador golpea a enemigo
     this.physics.add.overlap(
       this.playerHits,
       this.enemy,
-      (hitObj, enemyGO) => {
-        if (!(hitObj instanceof HitBox)) return;
-        const hit = hitObj as HitBox;
+      (objA, objB) => {
+        const hit =
+          objA instanceof HitBox ? (objA as HitBox) : (objB as HitBox);
+        const enemy =
+          objA instanceof HitBox
+            ? (objB as DamageableSprite)
+            : (objA as DamageableSprite);
 
-        if ((hit as any).hasHit) return;
-
-        // casteamos el segundo parámetro a Sprite
-        const sprite = enemyGO as Phaser.Physics.Arcade.Sprite;
-        const eBody = sprite.body as Phaser.Physics.Arcade.Body;
-
-        const isAirHit = hit.hitData.knockBack.y < 0; // criterio simple
-        if (isAirHit && eBody.blocked.down) return;
-
-        (hit as any).hasHit = true;
-        hit.destroy();
-        // Aplicamos el golpe correctamente al sprite:
-        hit.applyTo(enemyGO as DamageableSprite);
+        if (!hit || (hit as any).hasHit) return;
+        hit.applyTo(enemy);
       },
       undefined,
       this
     );
 
-    // 7️⃣  ―― BARRAS DE VIDA + LISTENERS ――――――――――――――――――――――――――――――
+    // 7️⃣ — HUD de vida
     this.playerHealthBar = this.add.graphics();
     this.enemyHealthBar = this.add.graphics();
     this.drawHealthBar(this.playerHealthBar, 20, 20, this.player.health);
     this.drawHealthBar(this.enemyHealthBar, 580, 20, this.enemy.health);
 
-    // 7️⃣  ―― BARRAS DE VIDA + LISTENERS ――――――――――――――――――――――――――――――――
     this.player.on("healthChanged", (hp: number) => {
-      // ← tipo aquí
       this.drawHealthBar(this.playerHealthBar, 20, 20, hp);
     });
-
     this.enemy.on("healthChanged", (hp: number) => {
-      // ← …y aquí
       this.drawHealthBar(this.enemyHealthBar, 580, 20, hp);
     });
 
-    // 8️⃣  ―― INPUT DE ANIMACIONES DEL ENEMIGO ――――――――――――――――――――――――
+    // 8️⃣ — Teclas de prueba para el enemigo
     const ATTACK_ANIMS = [
       "enemy_punch",
       "enemy_kick_light",
       "enemy_kick_strong",
     ];
+    const keyMap: Record<string, string> = {
+      P: "enemy_idle",
+      K: "enemy_walk",
+      V: "enemy_jump",
+      L: "enemy_punch",
+      O: "enemy_kick_light",
+      I: "enemy_kick_strong",
+      H: "enemy_guard_high",
+      J: "enemy_guard_low",
+      U: "enemy_hit_high",
+      Y: "enemy_hit_low",
+      W: "enemy_ko",
+      B: "enemy_blow",
+    };
 
-    this.input.keyboard?.on("keydown", (evt: KeyboardEvent) => {
-      const map: Record<string, string> = {
-        P: "enemy_idle",
-        K: "enemy_walk",
-        V: "enemy_jump",
-        L: "enemy_punch",
-        O: "enemy_kick_light",
-        I: "enemy_kick_strong",
-        H: "enemy_guard_high",
-        J: "enemy_guard_low",
-        U: "enemy_hit_high",
-        Y: "enemy_hit_low",
-        W: "enemy_ko",
-        B: "enemy_special",
-      };
-
-      const anim = map[evt.key.toUpperCase()];
+    this.input.keyboard!.on("keydown", (evt: KeyboardEvent) => {
+      const anim = keyMap[evt.key.toUpperCase()];
       if (!anim) return;
 
       this.enemy.play(anim, true);
-      (this.enemy as any).isAttacking = ATTACK_ANIMS.includes(anim);
 
-      this.enemy.once(
-        Phaser.Animations.Events.ANIMATION_COMPLETE,
-        () => ((this.enemy as any).isAttacking = false)
-      );
+      // ── sólo dentro del callback existe “anim” ──
+      const isAtk = ATTACK_ANIMS.includes(anim);
+      (this.enemy as any).isAttacking = isAtk;
 
-      this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
-
-      this.enemy = this.physics.add
-        .sprite(650, 500, "detective_idle", 0)
-        .setFlipX(true) as DamageableSprite;
-      const eBody = this.enemy.body as Phaser.Physics.Arcade.Body;
-      eBody.setGravityY(980);
+      if (isAtk) {
+        this.enemy.once(
+          Phaser.Animations.Events.ANIMATION_COMPLETE,
+          () => ((this.enemy as any).isAttacking = false)
+        );
+      }
     });
   }
 
@@ -311,8 +270,9 @@ export default class FightScene extends Phaser.Scene {
     bar.fillRect(x, y, pct * width, height);
   }
 
-  update(): void {
-    this.player.update();
+  update(time: number, delta: number): void {
+    this.player.update(time, delta);
+    (this.enemy as Enemy).update(time, delta);
   }
 
   private createPlayerAnimations(): void {
@@ -419,13 +379,6 @@ export default class FightScene extends Phaser.Scene {
       frameRate: 8,
       repeat: 0,
     });
-
-    // FightScene.create()
-    this.playerHits = this.physics.add.group({
-      classType: HitBox, // rectángulo invisible
-      runChildUpdate: false,
-      allowGravity: false,
-    });
   }
 
   private createEnemyAnimations(): void {
@@ -442,11 +395,12 @@ export default class FightScene extends Phaser.Scene {
       key: "enemy_walk",
       frames: this.anims.generateFrameNumbers("detective_locomotion", {
         start: 0,
-        end: 3,
+        end: 2,
       }),
-      frameRate: 8,
+      frameRate: 4,
       repeat: -1,
     });
+
     this.anims.create({
       key: "enemy_punch",
       frames: this.anims.generateFrameNumbers("detective_punch", {
