@@ -417,14 +417,6 @@ export default class FightScene extends Phaser.Scene {
     });
   }
 
-  // listener sencillo
-  private onPlayerHitEnemy = () => {
-    if ((this.enemy as any).isHit) return; // evita multigolpes
-    (this.enemy as any).isHit = true;
-    this.enemy.play("enemy_hit_high", true); // reacción
-    this.time.delayedCall(300, () => ((this.enemy as any).isHit = false));
-  };
-
   private createEnemyAnimations(): void {
     this.anims.create({
       key: "enemy_idle",
