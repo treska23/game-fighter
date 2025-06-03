@@ -15,9 +15,9 @@ type DamageableSprite = Phaser.Physics.Arcade.Sprite & {
 
 export default class FightScene extends Phaser.Scene {
   private player!: Player; // ← tu clase Player             ★
-  private enemy!: DamageableSprite; // ← alias recién creado
+  private enemy!: Enemy; // ← alias recién creado
 
-  private playerHits!: AttackGroup;
+  private hitGroup!: Phaser.Physics.Arcade.Group;
 
   // Gráficos para las barras
   private playerHealthBar!: Phaser.GameObjects.Graphics;
@@ -117,7 +117,7 @@ export default class FightScene extends Phaser.Scene {
       { frameWidth: 48, frameHeight: 64 }
     );
     this.load.spritesheet(
-      "detective_kicks_strong",
+      "detective_kick_strong",
       "/assets/detective/detective_kicks_tight.png",
       { frameWidth: 48, frameHeight: 64 }
     );
@@ -145,6 +145,7 @@ export default class FightScene extends Phaser.Scene {
   create(): void {
     // 0️⃣ — Carga animaciones (solo una vez)
     Enemy.createAnimations(this.anims);
+    this.createPlayerAnimations();
 
     // 1️⃣ — Fondo y plataformas
     this.add
@@ -155,48 +156,72 @@ export default class FightScene extends Phaser.Scene {
     const platforms = this.physics.add.staticGroup();
     platforms.create(400, 568, "ground").setDisplaySize(800, 64).refreshBody();
 
-    // 2️⃣ — Animaciones jugador + enemigo
-    this.createPlayerAnimations();
-    this.createEnemyAnimations();
-
     // 3️⃣ — Grupo de hit‐boxes
-    this.playerHits = this.physics.add.group({
+    this.hitGroup = this.physics.add.group({
       classType: HitBox,
       allowGravity: false,
-      runChildUpdate: false,
+      runChildUpdate: true, // importante: para que las HitBox actualicen su lógica
     });
 
     // 4️⃣ — Crear jugador
-    this.player = new Player(this, 100, 515, "player_idle", 0, this.playerHits);
+    this.player = new Player(this, 100, 515, "player_idle", 0, this.hitGroup);
     this.player.setCollideWorldBounds(true);
     (this.player.body as Phaser.Physics.Arcade.Body).setBounce(1, 0);
     this.physics.add.collider(this.player, platforms);
 
     // 5️⃣ — Crear enemigo
-    this.enemy = new Enemy(this, 650, 500, "detective_idle", 0).setFlipX(
-      true
-    ) as DamageableSprite;
-    (this.enemy as Enemy).setTarget(this.player);
+    this.enemy = new Enemy(
+      this,
+      650,
+      500,
+      "detective_idle", // textura inicial
+      0, // frame por defecto
+      100, // maxHealth (puedes ajustar este número)
+      this.player, // → target: el jugador
+      this.hitGroup // → hitGroup: grupo compartido de HitBoxes
+    );
+    this.enemy.setFlipX(true);
+
     this.physics.add.collider(this.enemy, platforms);
 
-    // 6️⃣ — Overlap: jugador golpea a enemigo
-    this.physics.add.overlap(
-      this.playerHits,
-      this.enemy,
-      (objA, objB) => {
-        const hit =
-          objA instanceof HitBox ? (objA as HitBox) : (objB as HitBox);
-        const enemy =
-          objA instanceof HitBox
-            ? (objB as DamageableSprite)
-            : (objA as DamageableSprite);
+    this.enemy.onHit(() => {
+      // Aquí pones la reacción extra al impactar:
+      // — Sonido de golpe —
+      this.sound.play("hit_sound");
 
-        if (!hit || (hit as any).hasHit) return;
-        hit.applyTo(enemy);
-      },
-      undefined,
-      this
-    );
+      // — Partículas de efecto —
+      /* const p = this.add.particles("sangre");
+  p.createEmitter({
+    x: this.player.x,
+    y: this.player.y - 20,
+    speed: { min: -100, max: 100 },
+    lifespan: 300,
+    quantity: 5,
+    scale: { start: 1, end: 0 },
+    blendMode: "ADD"
+  }).explode(10, this.player.x, this.player.y - 20); */
+
+      // — Cámara tiembla un poquito —
+      this.cameras.main.shake(100, 0.01);
+    });
+
+    // 6️⃣ — Overlap: cualquier HitBox del grupo golpea al enemigo
+    this.physics.add.overlap(this.hitGroup, this.enemy, (objA, objB) => {
+      const hit = objA instanceof HitBox ? (objA as HitBox) : (objB as HitBox);
+      const enem = objA === hit ? (objB as Enemy) : (objA as Enemy);
+
+      if (hit.hitData.owner !== "player") return; // ← filtro
+      hit.applyTo(enem);
+    });
+
+    // 7️⃣ — Overlap: cualquier HitBox del grupo golpea al jugador
+    this.physics.add.overlap(this.hitGroup, this.player, (objA, objB) => {
+      const hit = objA instanceof HitBox ? (objA as HitBox) : (objB as HitBox);
+      const plyr = objA === hit ? (objB as Player) : (objA as Player);
+
+      if (hit.hitData.owner !== "enemy") return;
+      hit.applyTo(plyr);
+    });
 
     // 7️⃣ — HUD de vida
     this.playerHealthBar = this.add.graphics();
@@ -217,6 +242,7 @@ export default class FightScene extends Phaser.Scene {
       "enemy_kick_light",
       "enemy_kick_strong",
     ];
+
     const keyMap: Record<string, string> = {
       P: "enemy_idle",
       K: "enemy_walk",
@@ -377,157 +403,6 @@ export default class FightScene extends Phaser.Scene {
         end: 0,
       }),
       frameRate: 8,
-      repeat: 0,
-    });
-  }
-
-  private createEnemyAnimations(): void {
-    this.anims.create({
-      key: "enemy_idle",
-      frames: this.anims.generateFrameNumbers("detective_idle", {
-        start: 0,
-        end: 0,
-      }),
-      frameRate: 6,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: "enemy_walk",
-      frames: this.anims.generateFrameNumbers("detective_locomotion", {
-        start: 0,
-        end: 2,
-      }),
-      frameRate: 4,
-      repeat: -1,
-    });
-
-    this.anims.create({
-      key: "enemy_punch",
-      frames: this.anims.generateFrameNumbers("detective_punch", {
-        start: 0,
-        end: 1,
-      }),
-      frameRate: 10,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_kick_light",
-      frames: this.anims.generateFrameNumbers("detective_kicks_light", {
-        start: 0,
-        end: 2,
-      }),
-      frameRate: 10,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_kick_strong",
-      frames: this.anims.generateFrameNumbers("detective_kicks_strong", {
-        start: 0,
-        end: 2,
-      }),
-      frameRate: 10,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_guard_high",
-      frames: this.anims.generateFrameNumbers("detective_defense", {
-        start: 0,
-        end: 0,
-      }),
-      frameRate: 1,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: "enemy_guard_low",
-      frames: this.anims.generateFrameNumbers("detective_defense", {
-        start: 1,
-        end: 1,
-      }),
-      frameRate: 1,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: "enemy_hit_high",
-      frames: this.anims.generateFrameNumbers("detective_damage", {
-        start: 0,
-        end: 0,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_hit_low",
-      frames: this.anims.generateFrameNumbers("detective_damage", {
-        start: 1,
-        end: 1,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_launch",
-      frames: this.anims.generateFrameNumbers("detective_damage", {
-        start: 2,
-        end: 2,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_ko",
-      frames: this.anims.generateFrameNumbers("detective_damage", {
-        start: 3,
-        end: 3,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_get_up",
-      frames: this.anims.generateFrameNumbers("detective_damage", {
-        start: 4,
-        end: 4,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_dizzy",
-      frames: this.anims.generateFrameNumbers("detective_damage", {
-        start: 5,
-        end: 5,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_blow",
-      frames: this.anims.generateFrameNumbers("detective_specials", {
-        start: 0,
-        end: 1,
-      }),
-      frameRate: 6,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_taunt",
-      frames: this.anims.generateFrameNumbers("detective_specials", {
-        start: 2,
-        end: 3,
-      }),
-      frameRate: 6,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_victory",
-      frames: [{ key: "detective_specials", frame: 4 }],
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "enemy_defeat",
-      frames: [{ key: "detective_specials", frame: 5 }],
-      frameRate: 1,
       repeat: 0,
     });
   }

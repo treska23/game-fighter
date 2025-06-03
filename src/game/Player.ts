@@ -48,8 +48,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.health = Phaser.Math.Clamp(this.health - amount, 0, this.maxHealth);
     this.anims.play("player_damage", true);
 
+    // ← ① Cancelamos cualquier ataque en curso
+    this.attackState = "idle";
+
     this.scene.time.delayedCall(stun, () => {
-      if (this.health > 0) this.play("enemy_idle", true);
+      if (this.health > 0) this.play("player_idle", true);
     });
 
     // Si llega a cero, KO
@@ -110,8 +113,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       (this.scene as any).enemy as Phaser.Physics.Arcade.Sprite,
       (_zone, enemySprite) => {
         const hit = _zone as HitBox;
-        if ((hit as any).hasHit) return;
-        (hit as any).hasHit = true;
         hit.applyTo(enemySprite as any);
       },
       undefined,

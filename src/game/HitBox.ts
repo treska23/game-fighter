@@ -39,6 +39,7 @@ export class HitBox extends Phaser.GameObjects.Zone {
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
+    body.setSize(w, h);
     body.setEnable(true);
 
     // guardamos los datos para acceder vía getData() si hace falta
