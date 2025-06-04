@@ -189,7 +189,7 @@ export default class FightScene extends Phaser.Scene {
     this.enemy.onHit(() => {
       // Aquí pones la reacción extra al impactar:
       // — Sonido de golpe —
-      this.sound.play("hit_sound");
+      //this.sound.play("hit_sound");
 
       // — Partículas de efecto —
       /* const p = this.add.particles("sangre");

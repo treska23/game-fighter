@@ -8,7 +8,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private speed = 100; // por si luego quieres movimiento
   public health: number;
   public maxHealth: number;
-  private inAirAttack = false;
 
   private aiState: "chase" | "attack" = "chase"; // ① Estado interno
   private attackCooldown = false; // ③ Evita spamear ataques
@@ -93,6 +92,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     });
 
     this.emit("healthChanged", this.health);
+    this.guardState = "none";
   }
 
   /** ========================================
