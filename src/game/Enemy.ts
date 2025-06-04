@@ -22,6 +22,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private airAttackRange = 100; // distancia horizontal máxima para saltar y golpear
   private jumpCooldown = false; // evita que salte cada frame
 
+  /** Probabilidad de bloquear un golpe entrante (0-100)              */
+  private guardChance = 100;
+  /** true mientras esté en anim “guard” o “crouch”                   */
+  private isGuarding = false;
+  public guardState: "none" | "high" | "low" = "none";
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -65,6 +70,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   /** Lógica de daño y hit-stun */
   public takeDamage(amount: number, stun = 180) {
+    if (amount <= 0) return;
     this.health = Phaser.Math.Clamp(this.health - amount, 0, this.maxHealth);
 
     this.play("enemy_hit_high", true);
@@ -180,21 +186,19 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   /** Salta y, a mitad de trayecto, crea una hit-box aérea */
   private startJumpAttack() {
-    // no hagas nada si aún está en cooldown
     if (this.jumpCooldown || this.isAttacking) return;
 
     this.jumpCooldown = true;
     this.isAttacking = true;
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    // ① salto vertical ligero hacia el jugador
-    const dir = this.flipX ? -1 : 1;
-    (this.body as Phaser.Physics.Arcade.Body).setVelocity(dir * 80, -300);
 
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    const dir = this.flipX ? -1 : 1;
+
+    // impulso inicial
     body.setVelocity(dir * 80, -300);
-    // ② reproduce animación de patada aérea (añádela en createAnimations)
     this.play("enemy_jump_kick", true);
 
-    // ③ crea la hit-box justo cuando está en el punto más alto (~300 ms)
+    /* hit-box en el aire --------------------------------------------------- */
     this.scene.time.delayedCall(300, () => {
       const airHit: HitData = {
         damage: 12,
@@ -216,28 +220,23 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.scene.time.delayedCall(150, () => hb.destroy());
     });
 
-    const landingCheck = this.scene.time.addEvent({
-      delay: 16, // se evalúa cada frame
+    /* ── detector de aterrizaje: sólo se ejecuta UNA vez ─────────────────── */
+    const landingEvt = this.scene.time.addEvent({
+      delay: 16,
       loop: true,
+
       callback: (_ev: Phaser.Time.TimerEvent) => {
+
         if (body.blocked.down) {
-          // ya tocó suelo
+          landingEvt.remove(false); // detener el bucle
           this.isAttacking = false;
           this.aiState = "chase";
-          this.play("enemy_idle", true);
-          landingCheck.remove(false);
+          this.play("enemy_idle", true); // vuelve a idle UNA vez
+          // 1 s de cooldown antes del siguiente salto
+          this.scene.time.delayedCall(1000, () => (this.jumpCooldown = false));
         }
       },
     });
-
-    // ④ al caer, vuelve a estado «chase»
-    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-      this.isAttacking = false;
-      this.aiState = "chase";
-    });
-
-    // cooldown de 1 s antes de volver a saltar
-    this.scene.time.delayedCall(1000, () => (this.jumpCooldown = false));
   }
 
   /** En caso de querer reacción extra al impactar */
@@ -250,40 +249,99 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this._onHitOverlap?.();
   }
 
-  /** Dejar aquí otras funciones específicas: ataques, IA, movimiento... */
+  /** Devuelve la altura (“high”, “mid”, “low”) del último hit del player,
+   *  o null si el jugador no está atacando en este momento. */
+  private getIncomingHitHeight(): "high" | "mid" | "low" | null {
+    const plyr = this.target as any;
+    if (!plyr?.isAttacking) return null;
+    // El Player ya genera su HitBox con la altura en hitData.height,
+    // así que miramos el grupo compartido:
+    for (const child of this.hitGroup.getChildren()) {
+      const hb = child as HitBox;
+      if (hb.active && hb.hitData.owner === "player") {
+        return hb.hitData.height;
+      }
+    }
+    return null;
+  }
 
   public update(_time: number, _delta: number) {
     const current = this.anims.currentAnim?.key;
     if (current?.startsWith("enemy_hit") || current === "enemy_ko") return;
+
     if (!this.target) {
-      // Si no hay objetivo, nos quedamos idle
       (this.body as Phaser.Physics.Arcade.Body).setVelocityX(0);
       this.play("enemy_idle", true);
       return;
     }
 
+    /* 1.  datos básicos ---------------------------------------------------- */
+    const body = this.body as Phaser.Physics.Arcade.Body;
     const dx = this.target.x - this.x;
     const dist = Math.abs(dx);
     const dir = Math.sign(dx);
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    const justLanded =
-      body.blocked.down && body.velocity.y === 0 && this.aiState === "chase";
 
-    // evita quedarte colgado con anim walk
-    if (justLanded && !this.isAttacking) {
-      body.setVelocityX(0); // frena del todo
-      this.play("enemy_idle", true);
+    const incoming = this.getIncomingHitHeight();
+    if (
+      incoming &&
+      body.blocked.down &&
+      !this.isAttacking &&
+      !this.isGuarding
+    ) {
+      console.log("Decido cubrir", incoming);
+      if (Phaser.Math.Between(0, 100) < this.guardChance) {
+        // decidimos cubrir
+        this.isGuarding = true;
+        body.setVelocityX(0);
+
+        if (incoming === "low") {
+          this.play("enemy_guard_low", true);
+          this.guardState = "low";
+        } else {
+          this.play("enemy_guard_high", true);
+          this.guardState = "high";
+        }
+
+        // salir de guardia tras 300 ms
+        this.scene.time.delayedCall(300, () => {
+          this.isGuarding = false;
+          this.play("enemy_idle", true);
+        });
+        return; // nada más este frame
+      } else if (incoming === "high") {
+        // si no va a cubrir pero es alto…
+        // …agáchate para esquivar
+        this.isGuarding = true;
+        body.setVelocityX(0);
+        this.play("enemy_down", true); // usa tu anim. de agacharse
+
+        this.scene.time.delayedCall(300, () => {
+          this.isGuarding = false;
+          this.guardState = "none";
+          this.play("enemy_idle", true);
+        });
+        return;
+      }
     }
+
+    if (this.isGuarding) return;
+
+    /* 2.  Máquina de estados sencilla ------------------------------------- */
     switch (this.aiState) {
-      case "chase":
-        /* ── A) Movimiento básico cuando está en el suelo ────────── */
+      /* -- persecución ----------------------------------------------------- */
+      case "chase": {
+        /* 2-A   andar hacia el jugador si estamos en suelo */
         if (body.blocked.down && !this.isAttacking && !this.attackCooldown) {
           body.setVelocityX(dir * this.speed);
-          this.play("enemy_walk", true);
+
+          /* reproducir walk SOLO si aún no está sonando */
+          if (this.anims.currentAnim?.key !== "enemy_walk") {
+            this.play("enemy_walk", true);
+          }
           this.setFlipX(dir < 0);
         }
 
-        /* ── B) Ataque a distancia corta o salto ─────────────────── */
+        /* 2-B   decidir atacar o saltar                                    */
         if (dist <= this.groundAttackRange && body.blocked.down) {
           body.setVelocityX(0);
           this.aiState = "attack";
@@ -293,27 +351,21 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           Phaser.Math.Between(0, 100) < 15
         ) {
           this.startJumpAttack();
-          this.inAirAttack = true;
         }
         break;
+      }
 
-      case "attack":
+      /* -- ataque cuerpo a cuerpo ----------------------------------------- */
+      case "attack": {
         if (!this.isAttacking) {
-          // ¿Todavía en cooldown? -> volver a perseguir
           if (this.attackCooldown) {
             this.aiState = "chase";
-            break;
+          } else {
+            this.startAttack();
           }
         }
-        this.startAttack();
         break;
-    }
-
-    if (this.inAirAttack && body.blocked.down) {
-      this.inAirAttack = false;
-      this.isAttacking = false;
-      this.aiState = "chase";
-      this.play("enemy_idle", true);
+      }
     }
   }
 
@@ -326,7 +378,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       key: "enemy_idle",
       frames: anims.generateFrameNumbers("detective_idle", {
         start: 0,
-        end: 0,
+        end: 1,
       }),
       frameRate: 6,
       repeat: -1,
@@ -364,9 +416,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     anims.create({
       key: "enemy_ko",
-      frames: anims.generateFrameNumbers("detective_damage", {
-        start: 3,
-        end: 3,
+      frames: anims.generateFrameNumbers("detective_ko", {
+        start: 0,
+        end: 0,
       }),
       frameRate: 4,
       repeat: 0,
@@ -397,6 +449,33 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       }),
       frameRate: 12,
       repeat: 0,
+    });
+    anims.create({
+      key: "enemy_guard_high",
+      frames: anims.generateFrameNumbers("detective_defense", {
+        start: 0,
+        end: 0,
+      }),
+      frameRate: 2,
+      repeat: 0,
+    });
+    anims.create({
+      key: "enemy_guard_low",
+      frames: anims.generateFrameNumbers("detective_defense", {
+        start: 1,
+        end: 1,
+      }),
+      frameRate: 2,
+      repeat: 0,
+    });
+    anims.create({
+      key: "enemy_down",
+      frames: anims.generateFrameNumbers("detective_down", {
+        start: 0,
+        end: 0,
+      }),
+      frameRate: 2,
+      repeat: 0, // solo un frame de “duck”
     });
   }
 }

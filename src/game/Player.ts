@@ -13,10 +13,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     kickL: Phaser.Input.Keyboard.Key;
     kickH: Phaser.Input.Keyboard.Key;
   };
+  public isAttacking: boolean = false;
   private hitGroup: Phaser.Physics.Arcade.Group;
   private attackState: "idle" | "attack" = "idle";
   public health: number = 100;
   public maxHealth: number = 100;
+  public guardState: "none" | "high" | "low" = "none";
 
   constructor(
     scene: Phaser.Scene,
@@ -45,6 +47,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   public takeDamage(amount: number, stun = 180) {
+    if (amount <= 0) return;
     this.health = Phaser.Math.Clamp(this.health - amount, 0, this.maxHealth);
     this.anims.play("player_damage", true);
 
@@ -73,6 +76,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     hitData: Partial<HitData> = {}
   ) {
     this.attackState = "attack";
+    this.isAttacking = true;
+
     const playerBody = this.body as Phaser.Physics.Arcade.Body;
 
     if (playerBody.blocked.down) {
@@ -129,6 +134,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       (animation: Phaser.Animations.Animation) => {
         if (animation.key === anim) {
           this.attackState = "idle";
+          this.isAttacking = false;
         }
       }
     );
@@ -227,8 +233,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const enemyIsAttacking = enemy?.isAttacking;
     if (backPressed && enemyIsAttacking) {
       this.setVelocityX(0);
-      if (down) this.anims.play("player_guard_low", true);
-      else this.anims.play("player_guard_high", true);
+
+      if (down) {
+        this.guardState = "low"; // guardia baja
+        this.anims.play("player_guard_low", true);
+      } else {
+        this.guardState = "high"; // guardia alta
+        this.anims.play("player_guard_high", true);
+      }
+
       return;
     }
 
