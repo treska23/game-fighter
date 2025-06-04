@@ -226,8 +226,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         airHit
       );
       this.hitGroup.add(hb);
-      this.scene.time.delayedCall(150, () => hb.destroy());
-    });
+    this.scene.time.delayedCall(150, () => hb.destroy());
+  });
 
     /* ── detector de aterrizaje: sólo se ejecuta UNA vez ─────────────────── */
     const landingEvt = this.scene.time.addEvent({
@@ -245,6 +245,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           this.scene.time.delayedCall(1000, () => (this.jumpCooldown = false));
         }
       },
+    });
+
+    // Salvaguarda por si la animación se corta y no aterriza
+    this.scene.time.delayedCall(1000, () => {
+      if (this.isAttacking) {
+        this.isAttacking = false;
+        this.aiState = "chase";
+      }
     });
   }
 
