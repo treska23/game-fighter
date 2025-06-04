@@ -181,7 +181,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return false;
   }
 
-  public update(time: number, delta: number): void {
+  public update(_time: number, _delta: number): void {
     // si estamos atacando, no tocar nada hasta que termine
     if (this.attackState === "attack") {
       return;

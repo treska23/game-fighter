@@ -15,7 +15,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private hitGroup: Phaser.Physics.Arcade.Group; // ④ Grupo donde crearemos HitBoxes
 
   private isAttacking = false; // para control interno
-  private onHitOverlap?: () => void; // callback opcional
+  private _onHitOverlap?: () => void; // callback opcional
   private target!: Phaser.Physics.Arcade.Sprite;
 
   private groundAttackRange = 60; // antes eran 100 px
@@ -219,7 +219,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const landingCheck = this.scene.time.addEvent({
       delay: 16, // se evalúa cada frame
       loop: true,
-      callback: (ev: Phaser.Time.TimerEvent) => {
+      callback: (_ev: Phaser.Time.TimerEvent) => {
         if (body.blocked.down) {
           // ya tocó suelo
           this.isAttacking = false;
@@ -242,12 +242,17 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   /** En caso de querer reacción extra al impactar */
   public onHit(callback: () => void) {
-    this.onHitOverlap = callback;
+    this._onHitOverlap = callback;
+  }
+
+  /** Ejecuta la callback registrada al impactar */
+  public triggerHit() {
+    this._onHitOverlap?.();
   }
 
   /** Dejar aquí otras funciones específicas: ataques, IA, movimiento... */
 
-  public update(time: number, delta: number) {
+  public update(_time: number, _delta: number) {
     const current = this.anims.currentAnim?.key;
     if (current?.startsWith("enemy_hit") || current === "enemy_ko") return;
     if (!this.target) {
