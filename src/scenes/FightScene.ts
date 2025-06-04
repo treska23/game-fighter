@@ -14,6 +14,8 @@ export default class FightScene extends Phaser.Scene {
   // Gráficos para las barras
   private playerHealthBar!: Phaser.GameObjects.Graphics;
   private enemyHealthBar!: Phaser.GameObjects.Graphics;
+  private playerHealthText!: Phaser.GameObjects.Text;
+  private enemyHealthText!: Phaser.GameObjects.Text;
 
   // Le decimos a TS que enemy tendrá también health, maxHealth y takeDamage()
 
@@ -253,14 +255,49 @@ export default class FightScene extends Phaser.Scene {
     // 7️⃣ — HUD de vida
     this.playerHealthBar = this.add.graphics();
     this.enemyHealthBar = this.add.graphics();
-    this.drawHealthBar(this.playerHealthBar, 20, 20, this.player.health);
-    this.drawHealthBar(this.enemyHealthBar, 580, 20, this.enemy.health);
+    this.playerHealthText = this.add.text(20, 20, `${this.player.health}`, {
+      fontSize: "14px",
+      color: "#ffffff",
+    });
+    this.enemyHealthText = this.add.text(580, 20, `${this.enemy.health}`, {
+      fontSize: "14px",
+      color: "#ffffff",
+    });
+
+    this.drawHealthBar(
+      this.playerHealthBar,
+      20,
+      20,
+      this.player.health,
+      this.player.maxHealth
+    );
+    this.drawHealthBar(
+      this.enemyHealthBar,
+      580,
+      20,
+      this.enemy.health,
+      this.enemy.maxHealth
+    );
 
     this.player.on("healthChanged", (hp: number) => {
-      this.drawHealthBar(this.playerHealthBar, 20, 20, hp);
+      this.drawHealthBar(
+        this.playerHealthBar,
+        20,
+        20,
+        hp,
+        this.player.maxHealth
+      );
+      this.playerHealthText.setText(`${hp}`);
     });
     this.enemy.on("healthChanged", (hp: number) => {
-      this.drawHealthBar(this.enemyHealthBar, 580, 20, hp);
+      this.drawHealthBar(
+        this.enemyHealthBar,
+        580,
+        20,
+        hp,
+        this.enemy.maxHealth
+      );
+      this.enemyHealthText.setText(`${hp}`);
     });
 
     // 8️⃣ — Teclas de prueba para el enemigo
@@ -308,18 +345,21 @@ export default class FightScene extends Phaser.Scene {
     bar: Phaser.GameObjects.Graphics,
     x: number,
     y: number,
-    health: number
+    health: number,
+    maxHealth: number
   ) {
     const width = 200;
     const height = 20;
-    const pct = Phaser.Math.Clamp(health / 100, 0, 1);
+    const pct = Phaser.Math.Clamp(health / maxHealth, 0, 1);
+
+    const color = pct > 0.6 ? 0x00ff00 : pct > 0.3 ? 0xffff00 : 0xff0000;
 
     bar.clear();
     // fondo
     bar.fillStyle(0x000000);
     bar.fillRect(x - 2, y - 2, width + 4, height + 4);
-    // barra roja
-    bar.fillStyle(0xff0000);
+    // barra color
+    bar.fillStyle(color);
     bar.fillRect(x, y, pct * width, height);
   }
 
