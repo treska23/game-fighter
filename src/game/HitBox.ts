@@ -71,12 +71,8 @@ export class HitBox extends Phaser.GameObjects.Zone {
     if (blocked) {
       // - pequeño retroceso visual
       if (knockBack) target.setVelocityX(knockBack.x * 0.3);
-
-      // - sin daño, stun reducido
+      
       target.takeDamage(0, guardStun);
-
-      // - chispa / sonido opcional  …
-      // this.scene.sound.play('block');  etc.
 
       this.destroy();
       return;
@@ -88,6 +84,10 @@ export class HitBox extends Phaser.GameObjects.Zone {
     }
 
     target.takeDamage(damage, hitStun);
+    
+    if ((target as any).health === 0) {
+      target.setVelocity(0, 0);
+    }
 
     if ((target as any).health === 0) {
       target.setVelocity(0, 0);
