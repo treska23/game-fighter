@@ -79,6 +79,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackState = "attack";
     this.isAttacking = true;
 
+    const animDuration = this.anims.get(anim)?.duration ?? duration;
+
     const playerBody = this.body as Phaser.Physics.Arcade.Body;
 
     if (playerBody.blocked.down) {
@@ -136,12 +138,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this
     );
 
-    this.scene.time.delayedCall(duration, () => {
+    this.scene.time.delayedCall(animDuration, () => {
       if (hb.active) hb.destroy();
     });
 
     // Fallback por si la animación se interrumpe
-    this.scene.time.delayedCall(duration, () => {
+    this.scene.time.delayedCall(animDuration + 50, () => {
       if (this.attackState === "attack") {
         this.attackState = "idle";
         this.isAttacking = false;
