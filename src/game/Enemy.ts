@@ -170,6 +170,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       if (hb.active) hb.destroy();
     });
 
+    // Fallback por si la animación se interrumpe
+    this.scene.time.delayedCall(150, () => {
+      if (this.aiState === "attack") {
+        this.aiState = "chase";
+        this.isAttacking = false;
+      }
+    });
+
     this.once(
       Phaser.Animations.Events.ANIMATION_COMPLETE,
       (anim: Phaser.Animations.Animation) => {

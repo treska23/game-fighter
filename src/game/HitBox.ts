@@ -16,9 +16,7 @@ export interface HitData {
   owner: "player" | "enemy";
 }
 
-type DamageableSprite = Phaser.Physics.Arcade.Sprite & {
-  takeDamage(amount: number, stun?: number): void;
-};
+
 
 export class HitBox extends Phaser.GameObjects.Zone {
   public readonly hitData: HitData;
