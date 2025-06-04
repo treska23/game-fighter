@@ -69,11 +69,11 @@ export class HitBox extends Phaser.GameObjects.Zone {
 
     /* 2. ── Respuesta si se BLOQUEA ──────────────────────────────── */
     if (blocked) {
-      // - sin daño, stun reducido
-      target.takeDamage(0, guardStun);
-
       // - pequeño retroceso visual
       if (knockBack) target.setVelocityX(knockBack.x * 0.3);
+
+      // - sin daño, stun reducido
+      target.takeDamage(0, guardStun);
 
       // - chispa / sonido opcional  …
       // this.scene.sound.play('block');  etc.
@@ -83,10 +83,14 @@ export class HitBox extends Phaser.GameObjects.Zone {
     }
 
     /* 3. ── Golpe entra con normalidad ───────────────────────────── */
-    target.takeDamage(damage, hitStun);
-
     if (knockBack) {
       target.setVelocity(knockBack.x, knockBack.y);
+    }
+
+    target.takeDamage(damage, hitStun);
+
+    if ((target as any).health === 0) {
+      target.setVelocity(0, 0);
     }
 
     this.destroy();
