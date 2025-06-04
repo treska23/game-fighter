@@ -53,6 +53,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // ← ① Cancelamos cualquier ataque en curso
     this.attackState = "idle";
+    this.isAttacking = false;
 
     this.scene.time.delayedCall(stun, () => {
       if (this.health > 0) this.play("player_idle", true);
