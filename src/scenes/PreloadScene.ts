@@ -95,7 +95,7 @@ export default class PreloadScene extends Phaser.Scene {
       frameWidth: 48,
       frameHeight: 64,
     });
-    this.load.spritesheet('detective_kick_strong', 'assets/detective/detective_kicks_tight.png', {
+    this.load.spritesheet('detective_kicks_tight', 'assets/detective/detective_kicks_tight.png', {
       frameWidth: 48,
       frameHeight: 64,
     });
