@@ -88,6 +88,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.play("enemy_idle", true);
       } else {
         this.play("enemy_ko", true);
+        this.setVelocity(0, 0);
       }
     });
 
