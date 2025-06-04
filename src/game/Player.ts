@@ -128,6 +128,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (hb.active) hb.destroy();
     });
 
+    // Fallback por si la animación se interrumpe
+    this.scene.time.delayedCall(duration, () => {
+      if (this.attackState === "attack") {
+        this.attackState = "idle";
+        this.isAttacking = false;
+      }
+    });
+
     //  ► Cuando termine la animación, volvemos a idle
     this.once(
       Phaser.Animations.Events.ANIMATION_COMPLETE,
