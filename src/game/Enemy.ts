@@ -26,6 +26,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** true mientras esté en anim “guard” o “crouch”                   */
   private isGuarding = false;
   public guardState: "none" | "high" | "low" = "none";
+  private isKO = false;
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -89,6 +90,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       } else {
         this.play("enemy_ko", true);
         this.setVelocity(0, 0);
+        this.isKO = true;
       }
     });
 
@@ -285,6 +287,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   public update(_time: number, _delta: number) {
+    if (this.isKO) return;
     const current = this.anims.currentAnim?.key;
     if (current?.startsWith("enemy_hit") || current === "enemy_ko") return;
 
