@@ -11,6 +11,9 @@ export default class FightScene extends Phaser.Scene {
 
   private hitGroup!: Phaser.Physics.Arcade.Group;
 
+  // Música de fondo provisional
+  private bgm!: Phaser.Sound.BaseSound;
+
   // Gráficos para las barras
   private playerHealthBar!: Phaser.GameObjects.Graphics;
   private enemyHealthBar!: Phaser.GameObjects.Graphics;
@@ -32,6 +35,11 @@ export default class FightScene extends Phaser.Scene {
     // 0️⃣ — Carga animaciones (solo una vez)
     Enemy.createAnimations(this.anims);
     this.createPlayerAnimations();
+
+    // Inicia la banda sonora 8‑bit en bucle
+    this.bgm = this.sound.add('bgm', { loop: true, volume: 0.5 });
+    this.bgm.play();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.bgm.stop());
 
     // 1️⃣ — Fondo y plataformas
     this.add
@@ -73,7 +81,7 @@ export default class FightScene extends Phaser.Scene {
     this.enemy.onHit(() => {
       // Aquí pones la reacción extra al impactar:
       // — Sonido de golpe —
-      //this.sound.play("hit_sound");
+      this.sound.play('hit_sound');
 
       // — Partículas de efecto —
       /* const p = this.add.particles("sangre");

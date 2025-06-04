@@ -124,6 +124,11 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.image('room_bg', 'assets/ground/room_background.png');
     this.load.image('ground', 'assets/ground/dirty_floor.png');
 
+    // === AUDIO (8-bit placeholders) ===
+    this.load.audio('bgm', 'audio/bgm.ogg');
+    this.load.audio('hit_sound', 'audio/hit.ogg');
+    this.load.audio('coin_sound', 'audio/coin.wav');
+
   }
 
   create() {
