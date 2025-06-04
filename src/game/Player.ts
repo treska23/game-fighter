@@ -19,6 +19,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public health: number = 100;
   public maxHealth: number = 100;
   public guardState: "none" | "high" | "low" = "none";
+  private isKO = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -63,7 +64,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.health === 0) {
       this.anims.play("player_ko", true);
       this.setVelocity(0, 0);
-      // aquí podrías deshabilitar controles o disparar "game over"
+      this.isKO = true;
     }
 
     // Emitimos un evento para que la escena actualice el HUD
@@ -199,6 +200,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   public update(_time: number, _delta: number): void {
+    if (this.isKO) return;
     this.guardState = "none";
     // si estamos atacando, no tocar nada hasta que termine
     if (this.attackState === "attack") {

@@ -16,6 +16,7 @@ export default class FightScene extends Phaser.Scene {
   private enemyHealthBar!: Phaser.GameObjects.Graphics;
   private playerHealthText!: Phaser.GameObjects.Text;
   private enemyHealthText!: Phaser.GameObjects.Text;
+  private ended = false;
 
   // Le decimos a TS que enemy tendrá también health, maxHealth y takeDamage()
 
@@ -288,6 +289,12 @@ export default class FightScene extends Phaser.Scene {
         this.player.maxHealth
       );
       this.playerHealthText.setText(`${hp}`);
+      if (hp <= 0 && !this.ended) {
+        this.ended = true;
+        this.time.delayedCall(2000, () => {
+          this.scene.start('GameOverScene');
+        });
+      }
     });
     this.enemy.on("healthChanged", (hp: number) => {
       this.drawHealthBar(
@@ -298,6 +305,12 @@ export default class FightScene extends Phaser.Scene {
         this.enemy.maxHealth
       );
       this.enemyHealthText.setText(`${hp}`);
+      if (hp <= 0 && !this.ended) {
+        this.ended = true;
+        this.time.delayedCall(2000, () => {
+          this.scene.start('VictoryScene');
+        });
+      }
     });
 
     // 8️⃣ — Teclas de prueba para el enemigo
