@@ -5,14 +5,6 @@ import { Enemy } from "../game/Enemy";
 
 //import type { HitData } from '../game/HitBox';
 
-type AttackGroup = Phaser.Physics.Arcade.Group;
-
-type DamageableSprite = Phaser.Physics.Arcade.Sprite & {
-  health: number;
-  maxHealth: number;
-  takeDamage: (amount: number) => void;
-};
-
 export default class FightScene extends Phaser.Scene {
   private player!: Player; // ← tu clase Player             ★
   private enemy!: Enemy; // ← alias recién creado
@@ -255,6 +247,7 @@ export default class FightScene extends Phaser.Scene {
 
       if (hit.hitData.owner !== "enemy") return;
       hit.applyTo(plyr);
+      this.enemy.triggerHit();
     });
 
     // 7️⃣ — HUD de vida
