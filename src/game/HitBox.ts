@@ -46,24 +46,49 @@ export class HitBox extends Phaser.GameObjects.Zone {
     this.setData("hitData", hitData);
   }
 
-  applyTo(target: DamageableSprite) {
-    // prevenir dobles impactos
-    if ((this as any).hasHit) return;
-    (this as any).hasHit = true;
+  // ==== src/game/HitBox.ts ====
 
-    // 1️⃣ Primero pegamos
-    target.takeDamage(this.hitData.damage, this.hitData.hitStun);
+  applyTo(
+    target: Phaser.Physics.Arcade.Sprite & {
+      takeDamage: (dmg: number, stun?: number) => void;
+      guardState?: "none" | "high" | "low";
+    }
+  ) {
+    const { damage, knockBack, hitStun, guardStun, height } = this.hitData;
 
-    // 2️⃣ Knock-back
-    target.setVelocity(this.hitData.knockBack.x, this.hitData.knockBack.y);
+    /* 1. ── ¿El objetivo está guardando? ─────────────────────────── */
+    let blocked = false;
+    if (target.guardState && target.guardState !== "none") {
+      const highGuard = target.guardState === "high";
+      const lowGuard = target.guardState === "low";
 
-    // 3️⃣ No volvamos a idle antes de tiempo
-    target.scene.time.delayedCall(this.hitData.hitStun, () => {
-      (target.body as Phaser.Physics.Arcade.Body).setVelocityX(0);
-      // el propio takeDamage se encargó de reproducir idle/KO
-    });
+      blocked =
+        (height === "low" && lowGuard) || // patada baja ↔ guardia baja
+        (height !== "low" && highGuard); // todo lo demás ↔ guardia alta
+    }
 
-    // destruimos la zona
+    /* 2. ── Respuesta si se BLOQUEA ──────────────────────────────── */
+    if (blocked) {
+      // - sin daño, stun reducido
+      target.takeDamage(0, guardStun);
+
+      // - pequeño retroceso visual
+      if (knockBack) target.setVelocityX(knockBack.x * 0.3);
+
+      // - chispa / sonido opcional  …
+      // this.scene.sound.play('block');  etc.
+
+      this.destroy();
+      return;
+    }
+
+    /* 3. ── Golpe entra con normalidad ───────────────────────────── */
+    target.takeDamage(damage, hitStun);
+
+    if (knockBack) {
+      target.setVelocity(knockBack.x, knockBack.y);
+    }
+
     this.destroy();
   }
 }
