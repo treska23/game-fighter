@@ -85,6 +85,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.setVelocityX(0);
     }
 
+    //  ► Cuando termine la animación, volvemos a idle
+    this.once(
+      Phaser.Animations.Events.ANIMATION_COMPLETE,
+      (animation: Phaser.Animations.Animation) => {
+        if (animation.key === anim) {
+          this.attackState = "idle";
+          this.isAttacking = false;
+        }
+      }
+    );
+
     this.anims.play(anim, true);
 
     //  ► Creamos la HitBox con datos mezclados
@@ -136,17 +147,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.isAttacking = false;
       }
     });
-
-    //  ► Cuando termine la animación, volvemos a idle
-    this.once(
-      Phaser.Animations.Events.ANIMATION_COMPLETE,
-      (animation: Phaser.Animations.Animation) => {
-        if (animation.key === anim) {
-          this.attackState = "idle";
-          this.isAttacking = false;
-        }
-      }
-    );
   }
 
   private tryAttack(): boolean {

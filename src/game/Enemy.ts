@@ -140,6 +140,22 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     console.log("Animación de ataque:", animKey);
+
+    // Nos aseguramos de capturar el fin de la animación antes de reproducirla
+    this.once(
+      Phaser.Animations.Events.ANIMATION_COMPLETE,
+      (anim: Phaser.Animations.Animation) => {
+        // Si la animación que acaba coincide con la que acabamos de reproducir:
+        if (anim.key === animKey) {
+          this.isAttacking = false;
+          this.scene.time.delayedCall(500, () => {
+            this.attackCooldown = false;
+          });
+          this.aiState = "chase";
+        }
+      }
+    );
+
     // Reproducimos animación de ataque (asegúrate de tenerla creada en createAnimations)
     this.play(animKey, true);
 
@@ -177,20 +193,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.isAttacking = false;
       }
     });
-
-    this.once(
-      Phaser.Animations.Events.ANIMATION_COMPLETE,
-      (anim: Phaser.Animations.Animation) => {
-        // Si la animación que acaba coincide con la que acabamos de reproducir:
-        if (anim.key === animKey) {
-          this.isAttacking = false;
-          this.scene.time.delayedCall(500, () => {
-            this.attackCooldown = false;
-          });
-          this.aiState = "chase";
-        }
-      }
-    );
   }
 
   /** Salta y, a mitad de trayecto, crea una hit-box aérea */
