@@ -305,6 +305,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         // salir de guardia tras 300 ms
         this.scene.time.delayedCall(300, () => {
           this.isGuarding = false;
+          this.guardState = "none";
           this.play("enemy_idle", true);
         });
         return; // nada más este frame
