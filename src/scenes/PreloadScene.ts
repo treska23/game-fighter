@@ -4,6 +4,14 @@ export default class PreloadScene extends Phaser.Scene {
   constructor() { super({ key: 'PreloadScene' }); }
 
   preload() {
+    this.cameras.main.setBackgroundColor('#333');
+    this.add
+      .text(400, 240, 'Gana el combate para seguir leyendo', {
+        color: '#ffffff',
+        fontSize: '16px',
+      })
+      .setOrigin(0.5);
+
     // barra de progreso
     const bar = this.add.graphics();
     this.load.on('progress', (p: number) => {
