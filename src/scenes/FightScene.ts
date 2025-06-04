@@ -168,7 +168,7 @@ export default class FightScene extends Phaser.Scene {
     // 4️⃣ — Crear jugador
     this.player = new Player(this, 100, 515, "player_idle", 0, this.hitGroup);
     this.player.setCollideWorldBounds(true);
-    (this.player.body as Phaser.Physics.Arcade.Body).setBounce(1, 0);
+    (this.player.body as Phaser.Physics.Arcade.Body).setBounce(0, 0);
     this.physics.add.collider(this.player, platforms);
 
     // 5️⃣ — Crear enemigo
