@@ -6,6 +6,8 @@ export default class GameOverScene extends Phaser.Scene {
   }
 
   create() {
+    this.sound.stopAll();
+    this.sound.play('coin_sound');
     this.cameras.main.setBackgroundColor('#222');
     this.add
       .text(400, 300, 'Game Over', {
