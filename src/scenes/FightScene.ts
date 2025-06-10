@@ -35,6 +35,7 @@ export default class FightScene extends Phaser.Scene {
 
   create(): void {
     this.canMove = false;
+    this.ended = false;
     // 0️⃣ — Carga animaciones (solo una vez)
     Enemy.createAnimations(this.anims);
     this.createPlayerAnimations();
