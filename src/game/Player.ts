@@ -19,6 +19,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public health: number = 100;
   public maxHealth: number = 100;
   public guardState: "none" | "high" | "low" = "none";
+  public isGuarding = false;
+  public isCrouching = false;
   private isKO = false;
 
   constructor(
@@ -51,6 +53,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (amount <= 0) return;
     this.health = Phaser.Math.Clamp(this.health - amount, 0, this.maxHealth);
     this.anims.play("player_damage", true);
+
+    this.isGuarding = false;
+    this.guardState = "none";
+    this.isCrouching = false;
 
     // ← ① Cancelamos cualquier ataque en curso
     this.attackState = "idle";
@@ -201,14 +207,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   public update(_time: number, _delta: number): void {
     if (this.isKO) return;
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+
+    this.isGuarding = false;
+    this.isCrouching = false;
     this.guardState = "none";
-    // si estamos atacando, no tocar nada hasta que termine
+
     if (this.attackState === "attack") {
       return;
     }
-    // Ataque cancela todo lo demás
+
     if (this.tryAttack()) return;
-    const body = this.body as Phaser.Physics.Arcade.Body;
 
     /* 0 ── ORIENTACIÓN HACIA EL ENEMIGO ─────────────────────────── */
     const enemy = (this.scene as any).enemy;
@@ -243,16 +253,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    /* 4 ── GUARDIA ALTA (atrás + enemigo atacando) ──────────────── */
+    /* 4 ── GUARDIA (atrás + enemigo atacando) ───────────────────── */
     const enemyIsAttacking = enemy?.isAttacking;
     if (backPressed && enemyIsAttacking) {
       this.setVelocityX(0);
+      this.isGuarding = true;
 
       if (down) {
-        this.guardState = "low"; // guardia baja
+        this.guardState = "low";
+        this.isCrouching = true;
         this.anims.play("player_guard_low", true);
       } else {
-        this.guardState = "high"; // guardia alta
+        this.guardState = "high";
         this.anims.play("player_guard_high", true);
       }
 
@@ -276,6 +288,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     /* 6 ── AGACHARSE (↓ o ↓+atrás sin ataque rival) ─────────────── */
     if (down) {
       this.setVelocityX(0);
+      this.isCrouching = true;
       this.anims.play("player_down", true);
       return;
     }

@@ -6,7 +6,8 @@ import type { HitData } from "./HitBox";
 import { requestEnemyAction, type EnemyDecision } from "./EnemyAI";
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
-  private speed = 125; // velocidad base ligeramente superior
+  private speed = 160; // dificultad aumentada otro 25%
+
   public health: number;
   public maxHealth: number;
 
@@ -27,10 +28,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** true mientras esté en anim “guard” o “crouch”                   */
   private isGuarding = false;
   public guardState: "none" | "high" | "low" = "none";
+  public isCrouching = false;
   private isKO = false;
   private pendingDecision: EnemyDecision | null = null;
   private lastDecisionTime = 0;
-  private damageMultiplier = 1.25;
+  private damageMultiplier = 1.6;
+
   private attackChance = 50;
   private jumpChance = 15;
   private pattern: "aggressive" | "defensive" | "balanced" = "balanced";
@@ -133,6 +136,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     this.emit("healthChanged", this.health);
     this.guardState = "none";
+    this.isGuarding = false;
+    this.isCrouching = false;
   }
 
   /** ========================================
@@ -329,6 +334,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   public update(_time: number, _delta: number) {
     if (this.isKO) return;
+    this.isCrouching = false;
     const current = this.anims.currentAnim?.key;
     if (current?.startsWith("enemy_hit") || current === "enemy_ko") return;
 
@@ -378,6 +384,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (incoming === "low") {
           this.play("enemy_guard_low", true);
           this.guardState = "low";
+          this.isCrouching = true;
         } else {
           this.play("enemy_guard_high", true);
           this.guardState = "high";
@@ -387,6 +394,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.scene.time.delayedCall(300, () => {
           this.isGuarding = false;
           this.guardState = "none";
+          this.isCrouching = false;
           this.play("enemy_idle", true);
         });
         return; // nada más este frame
@@ -394,12 +402,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         // si no va a cubrir pero es alto…
         // …agáchate para esquivar
         this.isGuarding = true;
+        this.isCrouching = true;
         body.setVelocityX(0);
         this.play("enemy_down", true); // usa tu anim. de agacharse
 
         this.scene.time.delayedCall(300, () => {
           this.isGuarding = false;
           this.guardState = "none";
+          this.isCrouching = false;
           this.play("enemy_idle", true);
         });
         return;
