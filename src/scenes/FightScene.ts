@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../game/Player";
 import { HitBox } from "../game/HitBox"; // ⬅️ nuevo import
 import { Enemy } from "../game/Enemy";
+import RoundManager from "../game/RoundManager";
 
 //import type { HitData } from '../game/HitBox';
 
@@ -20,6 +21,7 @@ export default class FightScene extends Phaser.Scene {
   private playerHealthText!: Phaser.GameObjects.Text;
   private enemyHealthText!: Phaser.GameObjects.Text;
   private ended = false;
+  private canMove = false;
 
   // Le decimos a TS que enemy tendrá también health, maxHealth y takeDamage()
 
@@ -32,6 +34,7 @@ export default class FightScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.canMove = false;
     // 0️⃣ — Carga animaciones (solo una vez)
     Enemy.createAnimations(this.anims);
     this.createPlayerAnimations();
@@ -78,26 +81,6 @@ export default class FightScene extends Phaser.Scene {
 
     this.physics.add.collider(this.enemy, platforms);
 
-    this.enemy.onHit(() => {
-      // Aquí pones la reacción extra al impactar:
-      // — Sonido de golpe —
-      this.sound.play('hit_sound');
-
-      // — Partículas de efecto —
-      /* const p = this.add.particles("sangre");
-  p.createEmitter({
-    x: this.player.x,
-    y: this.player.y - 20,
-    speed: { min: -100, max: 100 },
-    lifespan: 300,
-    quantity: 5,
-    scale: { start: 1, end: 0 },
-    blendMode: "ADD"
-  }).explode(10, this.player.x, this.player.y - 20); */
-
-      // — Cámara tiembla un poquito —
-      this.cameras.main.shake(100, 0.01);
-    });
 
     this.time.addEvent({
       delay: 500, // esperar medio segundo tras crear enemy
@@ -130,6 +113,7 @@ export default class FightScene extends Phaser.Scene {
 
       if (hit.hitData.owner !== "player") return; // ← filtro
       hit.applyTo(enem);
+      this.playHitEffects(hit);
     });
 
     // 7️⃣ — Overlap: cualquier HitBox del grupo golpea al jugador
@@ -139,7 +123,7 @@ export default class FightScene extends Phaser.Scene {
 
       if (hit.hitData.owner !== "enemy") return;
       hit.applyTo(plyr);
-      this.enemy.triggerHit();
+      this.playHitEffects(hit);
     });
 
     // 7️⃣ — HUD de vida
@@ -153,6 +137,17 @@ export default class FightScene extends Phaser.Scene {
       fontSize: "14px",
       color: "#ffffff",
     });
+    this.add
+      .text(
+        400,
+        50,
+        `Round ${RoundManager.round}  ${RoundManager.playerWins}-${RoundManager.enemyWins}`,
+        {
+          fontSize: "14px",
+          color: "#ffffff",
+        }
+      )
+      .setOrigin(0.5, 0);
 
     this.drawHealthBar(
       this.playerHealthBar,
@@ -169,6 +164,8 @@ export default class FightScene extends Phaser.Scene {
       this.enemy.maxHealth
     );
 
+    this.startRoundCountdown();
+
     this.player.on("healthChanged", (hp: number) => {
       this.drawHealthBar(
         this.playerHealthBar,
@@ -180,9 +177,21 @@ export default class FightScene extends Phaser.Scene {
       this.playerHealthText.setText(`${hp}`);
       if (hp <= 0 && !this.ended) {
         this.ended = true;
-        this.time.delayedCall(2000, () => {
-          this.scene.start('GameOverScene');
-        });
+        this.canMove = false;
+        this.add.text(400, 300, 'You Lose', {
+          fontSize: '32px',
+          color: '#ffffff',
+        }).setOrigin(0.5);
+        RoundManager.enemyWins += 1;
+        const next = () => {
+          if (RoundManager.enemyWins >= 2) {
+            this.scene.start('GameOverScene');
+          } else {
+            RoundManager.nextRound();
+            this.scene.restart();
+          }
+        };
+        this.time.delayedCall(2000, next);
       }
     });
     this.enemy.on("healthChanged", (hp: number) => {
@@ -196,9 +205,21 @@ export default class FightScene extends Phaser.Scene {
       this.enemyHealthText.setText(`${hp}`);
       if (hp <= 0 && !this.ended) {
         this.ended = true;
-        this.time.delayedCall(2000, () => {
-          this.scene.start('VictoryScene');
-        });
+        this.canMove = false;
+        this.add.text(400, 300, 'You Win', {
+          fontSize: '32px',
+          color: '#ffffff',
+        }).setOrigin(0.5);
+        RoundManager.playerWins += 1;
+        const next = () => {
+          if (RoundManager.playerWins >= 2) {
+            this.scene.start('VictoryScene');
+          } else {
+            RoundManager.nextRound();
+            this.scene.restart();
+          }
+        };
+        this.time.delayedCall(2000, next);
       }
     });
 
@@ -266,8 +287,42 @@ export default class FightScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (!this.canMove) return;
     this.player.update(time, delta);
     (this.enemy as Enemy).update(time, delta);
+  }
+
+  private playHitEffects(hit: HitBox) {
+    this.sound.play('hit_sound');
+    const { type, height } = hit.hitData as any;
+    if (type === 'kick' || (type === 'punch' && height === 'high')) {
+      this.cameras.main.shake(100, 0.01);
+    }
+  }
+
+  private startRoundCountdown() {
+    this.canMove = false;
+    const countdown = this.add.text(400, 260, '3', {
+      fontSize: '32px',
+      color: '#ffffff',
+    }).setOrigin(0.5);
+
+    let value = 3;
+    const evt = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        value -= 1;
+        if (value > 0) {
+          countdown.setText(String(value));
+        } else {
+          evt.remove(false);
+          countdown.setText('Fight!');
+          this.canMove = true;
+          this.time.delayedCall(500, () => countdown.destroy());
+        }
+      },
+    });
   }
 
   private createPlayerAnimations(): void {
@@ -325,10 +380,6 @@ export default class FightScene extends Phaser.Scene {
       frameRate: 8,
       repeat: 0,
     });
-    console.log(
-      "Player punch animation exists?",
-      this.anims.exists("player_punch")
-    );
     this.anims.create({
       key: "player_kick_light",
       frames: this.anims.generateFrameNumbers("player_kick_soft", {

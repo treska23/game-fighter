@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import RoundManager from '../game/RoundManager';
 
 export default class PreloadScene extends Phaser.Scene {
   constructor() { super({ key: 'PreloadScene' }); }
@@ -132,6 +133,7 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   create() {
+    RoundManager.reset();
     this.time.delayedCall(1000, () => {
       this.scene.start('FightScene');
     });
