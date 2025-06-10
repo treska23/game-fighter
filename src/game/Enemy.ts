@@ -139,8 +139,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     // ① Interrumpir completamente el ataque actual
     this.isAttacking = false;
     this.attackCooldown = true; // evita re-atacar durante el hit-stun
-    // ② Opcional: detener la animación de ataque que estuviera en curso
-    this.anims.stop(); // corta cualquier frame residual
+  private startAttack(crouchAttack = false) {
+    this.isCrouching = crouchAttack;
+          this.isCrouching = false;
+      height: crouchAttack ? "low" : "mid",
     // this.setFrame(0);           // (si quieres forzar frame base)
 
     this.scene.time.delayedCall(stun, () => {
@@ -472,7 +474,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           } else if (
             action === "jump" &&
             dist < this.airAttackRange &&
-            !this.jumpCooldown
+            const crouchAttack = (this.target as any)?.isCrouching ?? false;
+            this.startAttack(crouchAttack);
           ) {
             this.startJumpAttack();
           }
