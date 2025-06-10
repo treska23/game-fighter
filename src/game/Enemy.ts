@@ -3,6 +3,7 @@
 import Phaser from "phaser";
 import { HitBox } from "./HitBox"; // ① Importa HitBox
 import type { HitData } from "./HitBox";
+import { requestEnemyAction, type EnemyDecision } from "./EnemyAI";
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private speed = 100; // por si luego quieres movimiento
@@ -27,6 +28,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private isGuarding = false;
   public guardState: "none" | "high" | "low" = "none";
   private isKO = false;
+  private pendingDecision: EnemyDecision | null = null;
+  private lastDecisionTime = 0;
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -303,6 +306,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const dist = Math.abs(dx);
     const dir = Math.sign(dx);
 
+    // Periodically query OpenAI for a suggested action
+    if (_time - this.lastDecisionTime > 1000 && !this.pendingDecision) {
+      this.lastDecisionTime = _time;
+      requestEnemyAction({ distance: dist }).then((act) => {
+        if (act) this.pendingDecision = act;
+      });
+    }
+
     // Orientación hacia el jugador cada frame, sin afectar animaciones
     this.setFlipX(dx < 0);
 
@@ -367,7 +378,24 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         }
 
         /* 2-B   decidir atacar o saltar                                    */
-        if (dist <= this.groundAttackRange && body.blocked.down) {
+        if (this.pendingDecision) {
+          const action = this.pendingDecision;
+          this.pendingDecision = null;
+          if (
+            action === "attack" &&
+            dist <= this.groundAttackRange &&
+            body.blocked.down
+          ) {
+            body.setVelocityX(0);
+            this.aiState = "attack";
+          } else if (
+            action === "jump" &&
+            dist < this.airAttackRange &&
+            !this.jumpCooldown
+          ) {
+            this.startJumpAttack();
+          }
+        } else if (dist <= this.groundAttackRange && body.blocked.down) {
           body.setVelocityX(0);
           this.aiState = "attack";
         } else if (
