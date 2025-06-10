@@ -38,6 +38,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private patternWeakness: "high" | "low" | null = null;
   private intelligence = 2; // IA al 200%
   private decisionInterval = 1000;
+
   private nextPatternSwitch = 0;
   constructor(
     scene: Phaser.Scene,
@@ -106,11 +107,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.patternWeakness = null;
         break;
     }
-
     // escalar por inteligencia y limitar al 100%
     this.guardChance = Math.min(100, Math.round(this.guardChance * this.intelligence));
     this.attackChance = Math.min(100, Math.round(this.attackChance * this.intelligence));
     this.jumpChance = Math.min(100, Math.round(this.jumpChance * this.intelligence));
+
 
     this.nextPatternSwitch = this.scene.time.now + Phaser.Math.Between(4000, 7000);
   }

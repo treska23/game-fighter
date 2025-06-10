@@ -22,6 +22,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public isGuarding = false;
   public isCrouching = false;
   private damageMultiplier = 0.5; // daño reducido
+
   private isKO = false;
 
   constructor(
