@@ -3,6 +3,7 @@
 import Phaser from "phaser";
 import { HitBox } from "./HitBox"; // ⬅️ nuevo import
 import type { HitData } from "./HitBox";
+import Fireball from './Fireball';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -23,6 +24,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public isCrouching = false;
   private damageMultiplier = 0.5; // daño reducido
   private isKO = false;
+  private inputHistory: { key: string; time: number }[] = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -48,6 +50,48 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       kickL: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S)!,
       kickH: scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D)!,
     };
+  }
+
+  private recordInput(key: string) {
+    this.inputHistory.push({ key, time: this.scene.time.now });
+    if (this.inputHistory.length > 10) this.inputHistory.shift();
+  }
+
+  private checkFireballCombo(): boolean {
+    const now = this.scene.time.now;
+    const recent = this.inputHistory.filter((i) => now - i.time < 700);
+    const forward = this.flipX ? 'LEFT' : 'RIGHT';
+    const seq = ['DOWN', forward, 'PUNCH'];
+    let idx = 0;
+    for (const i of recent) {
+      if (i.key === seq[idx]) {
+        idx += 1;
+        if (idx === seq.length) return true;
+      }
+    }
+    return false;
+  }
+
+  private startFireball() {
+    this.attackState = 'attack';
+    this.isAttacking = true;
+    const dir = this.flipX ? -1 : 1;
+    const animKey = 'player_fireball';
+    const dur = this.anims.get(animKey)?.duration ?? 200;
+    this.anims.play(animKey, true);
+    this.scene.time.delayedCall(dur * 0.6, () => {
+      new Fireball(
+        this.scene,
+        this.x + dir * 24,
+        this.y - 16,
+        dir,
+        this.hitGroup
+      );
+    });
+    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      this.attackState = 'idle';
+      this.isAttacking = false;
+    });
   }
 
   public takeDamage(amount: number, stun = 180) {
@@ -169,6 +213,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const inAir = !(this.body as Phaser.Physics.Arcade.Body).blocked.down;
 
     if (Phaser.Input.Keyboard.JustDown(this.attackKeys.punch)) {
+      this.recordInput('PUNCH');
+      if (this.checkFireballCombo()) {
+        this.startFireball();
+        this.inputHistory = [];
+        return true;
+      }
       this.startAttack("player_punch", 26, 120, {
         damage: 6,
         hitStun: 120,
@@ -179,6 +229,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickL)) {
+      this.recordInput('KICKL');
       this.startAttack("player_kick_light", 32, 120, {
         damage: 10,
         hitStun: 180,
@@ -189,6 +240,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.attackKeys.kickH)) {
+      this.recordInput('KICKH');
       // if inAir, use a vertical knockback and longer stun
       if (inAir) {
         this.startAttack("player_kick_tight", 36, 150, {
@@ -238,6 +290,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const right = this.cursors.right.isDown;
     const down = this.cursors.down.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up);
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) this.recordInput('DOWN');
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) this.recordInput('LEFT');
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) this.recordInput('RIGHT');
 
     const facingLeft = this.flipX; // ya actualizado
     const backPressed = facingLeft ? right : left;

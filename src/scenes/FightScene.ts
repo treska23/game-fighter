@@ -375,6 +375,24 @@ export default class FightScene extends Phaser.Scene {
       repeat: 0,
     });
     this.anims.create({
+    this.anims.create({
+      key: 'player_fireball',
+      frames: this.anims.generateFrameNumbers('player_specials', {
+        start: 0,
+        end: 1,
+      }),
+      frameRate: 8,
+      repeat: 0,
+    });
+    this.anims.create({
+      key: 'fireball_move',
+      frames: this.anims.generateFrameNumbers('player_specials', {
+        start: 2,
+        end: 3,
+      }),
+      frameRate: 8,
+      repeat: -1,
+    });
       key: "player_punch",
       frames: this.anims.generateFrameNumbers("player_punch", {
         start: 0,
