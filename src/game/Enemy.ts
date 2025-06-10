@@ -6,7 +6,7 @@ import type { HitData } from "./HitBox";
 import { requestEnemyAction, type EnemyDecision } from "./EnemyAI";
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
-  private speed = 100; // por si luego quieres movimiento
+  private speed = 160; // dificultad aumentada otro 25%
   public health: number;
   public maxHealth: number;
 
@@ -27,9 +27,16 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   /** true mientras esté en anim “guard” o “crouch”                   */
   private isGuarding = false;
   public guardState: "none" | "high" | "low" = "none";
+  public isCrouching = false;
   private isKO = false;
   private pendingDecision: EnemyDecision | null = null;
   private lastDecisionTime = 0;
+  private damageMultiplier = 1.6;
+  private attackChance = 50;
+  private jumpChance = 15;
+  private pattern: "aggressive" | "defensive" | "balanced" = "balanced";
+  private patternWeakness: "high" | "low" | null = null;
+  private nextPatternSwitch = 0;
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -65,10 +72,38 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       // Si no viene grupo, creamos uno vacío (no recomendado; mejor siempre pasarlo desde la escena)
       this.hitGroup = scene.physics.add.group({ runChildUpdate: true });
     }
+
+    this.choosePattern();
   }
 
   public setTarget(target: Phaser.Physics.Arcade.Sprite) {
     this.target = target;
+  }
+
+  private choosePattern() {
+    const options = ["aggressive", "defensive", "balanced"] as const;
+    this.pattern = options[Phaser.Math.Between(0, options.length - 1)];
+    switch (this.pattern) {
+      case "aggressive":
+        this.guardChance = 25;
+        this.attackChance = 80;
+        this.jumpChance = 40;
+        this.patternWeakness = "high";
+        break;
+      case "defensive":
+        this.guardChance = 90;
+        this.attackChance = 30;
+        this.jumpChance = 10;
+        this.patternWeakness = "low";
+        break;
+      default:
+        this.guardChance = 60;
+        this.attackChance = 50;
+        this.jumpChance = 20;
+        this.patternWeakness = null;
+        break;
+    }
+    this.nextPatternSwitch = this.scene.time.now + Phaser.Math.Between(4000, 7000);
   }
 
   /** Lógica de daño y hit-stun */
@@ -99,6 +134,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     this.emit("healthChanged", this.health);
     this.guardState = "none";
+    this.isGuarding = false;
+    this.isCrouching = false;
   }
 
   /** ========================================
@@ -166,8 +203,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     // ↓ Creamos la HitBox justo delante del enemigo ↓
     const dir = this.flipX ? -1 : 1;
+    let baseDamage = 10;
+    if (tipoSeleccionado === "punch") baseDamage = 8;
+    if (tipoSeleccionado === "kick_tight") baseDamage = 14;
+
     const defaultHit: HitData = {
-      damage: 10,
+      damage: Math.round(baseDamage * this.damageMultiplier),
       knockBack: new Phaser.Math.Vector2(dir * 50, -100),
       hitStun: 200,
       guardStun: 8,
@@ -217,7 +258,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     /* hit-box en el aire --------------------------------------------------- */
     this.scene.time.delayedCall(300, () => {
       const airHit: HitData = {
-        damage: 12,
+        damage: Math.round(12 * this.damageMultiplier),
         knockBack: new Phaser.Math.Vector2(dir * 60, 100),
         hitStun: 260,
         guardStun: 10,
@@ -291,6 +332,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   public update(_time: number, _delta: number) {
     if (this.isKO) return;
+    this.isCrouching = false;
     const current = this.anims.currentAnim?.key;
     if (current?.startsWith("enemy_hit") || current === "enemy_ko") return;
 
@@ -305,6 +347,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const dx = this.target.x - this.x;
     const dist = Math.abs(dx);
     const dir = Math.sign(dx);
+
+    if (_time > this.nextPatternSwitch) {
+      this.choosePattern();
+    }
 
     // Periodically query OpenAI for a suggested action
     if (_time - this.lastDecisionTime > 1000 && !this.pendingDecision) {
@@ -325,7 +371,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       !this.isGuarding
     ) {
       console.log("Decido cubrir", incoming);
-      if (Phaser.Math.Between(0, 100) < this.guardChance) {
+      const shouldGuard =
+        Phaser.Math.Between(0, 100) < this.guardChance &&
+        incoming !== this.patternWeakness;
+      if (shouldGuard) {
         // decidimos cubrir
         this.isGuarding = true;
         body.setVelocityX(0);
@@ -333,6 +382,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (incoming === "low") {
           this.play("enemy_guard_low", true);
           this.guardState = "low";
+          this.isCrouching = true;
         } else {
           this.play("enemy_guard_high", true);
           this.guardState = "high";
@@ -342,6 +392,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.scene.time.delayedCall(300, () => {
           this.isGuarding = false;
           this.guardState = "none";
+          this.isCrouching = false;
           this.play("enemy_idle", true);
         });
         return; // nada más este frame
@@ -349,12 +400,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         // si no va a cubrir pero es alto…
         // …agáchate para esquivar
         this.isGuarding = true;
+        this.isCrouching = true;
         body.setVelocityX(0);
         this.play("enemy_down", true); // usa tu anim. de agacharse
 
         this.scene.time.delayedCall(300, () => {
           this.isGuarding = false;
           this.guardState = "none";
+          this.isCrouching = false;
           this.play("enemy_idle", true);
         });
         return;
@@ -395,13 +448,17 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           ) {
             this.startJumpAttack();
           }
-        } else if (dist <= this.groundAttackRange && body.blocked.down) {
+        } else if (
+          dist <= this.groundAttackRange &&
+          body.blocked.down &&
+          Phaser.Math.Between(0, 100) < this.attackChance
+        ) {
           body.setVelocityX(0);
           this.aiState = "attack";
         } else if (
           dist < this.airAttackRange &&
           !this.jumpCooldown &&
-          Phaser.Math.Between(0, 100) < 15
+          Phaser.Math.Between(0, 100) < this.jumpChance
         ) {
           this.startJumpAttack();
         }
