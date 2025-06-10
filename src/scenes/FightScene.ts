@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../game/Player";
 import { HitBox } from "../game/HitBox"; // ⬅️ nuevo import
 import { Enemy } from "../game/Enemy";
+import RoundManager from "../game/RoundManager";
 
 //import type { HitData } from '../game/HitBox';
 
@@ -134,6 +135,17 @@ export default class FightScene extends Phaser.Scene {
       fontSize: "14px",
       color: "#ffffff",
     });
+    this.add
+      .text(
+        400,
+        50,
+        `Round ${RoundManager.round}  ${RoundManager.playerWins}-${RoundManager.enemyWins}`,
+        {
+          fontSize: "14px",
+          color: "#ffffff",
+        }
+      )
+      .setOrigin(0.5, 0);
 
     this.drawHealthBar(
       this.playerHealthBar,
@@ -161,9 +173,16 @@ export default class FightScene extends Phaser.Scene {
       this.playerHealthText.setText(`${hp}`);
       if (hp <= 0 && !this.ended) {
         this.ended = true;
-        this.time.delayedCall(2000, () => {
-          this.scene.start('GameOverScene');
-        });
+        RoundManager.enemyWins += 1;
+        const next = () => {
+          if (RoundManager.enemyWins >= 2) {
+            this.scene.start('GameOverScene');
+          } else {
+            RoundManager.nextRound();
+            this.scene.restart();
+          }
+        };
+        this.time.delayedCall(2000, next);
       }
     });
     this.enemy.on("healthChanged", (hp: number) => {
@@ -177,9 +196,16 @@ export default class FightScene extends Phaser.Scene {
       this.enemyHealthText.setText(`${hp}`);
       if (hp <= 0 && !this.ended) {
         this.ended = true;
-        this.time.delayedCall(2000, () => {
-          this.scene.start('VictoryScene');
-        });
+        RoundManager.playerWins += 1;
+        const next = () => {
+          if (RoundManager.playerWins >= 2) {
+            this.scene.start('VictoryScene');
+          } else {
+            RoundManager.nextRound();
+            this.scene.restart();
+          }
+        };
+        this.time.delayedCall(2000, next);
       }
     });
 
