@@ -84,29 +84,6 @@ export default class FightScene extends Phaser.Scene {
     this.physics.add.collider(this.enemy, platforms);
 
 
-    this.time.addEvent({
-      delay: 500, // esperar medio segundo tras crear enemy
-      callback: () => {
-        // Le decimos al Enemy que *no* esté atacando ni en cooldown:
-        (this.enemy as any).isAttacking = false;
-        (this.enemy as any).attackCooldown = false;
-        // Forzamos que `getIncomingHitHeight()` devuelva “high”:
-        // Para ello, simulamos que hay una HitBox de player activa con height "high".
-        // La forma más sencilla es inyectar directamente el valor en el Enemy:
-        // (La función getIncomingHitHeight() recorre el grupo, pero ahora mismo
-        // lo ignoramos y forzamos la variable interna _guard_).
-        // Así que le asignamos directamente:
-        (this.enemy as any).guardState = "high";
-        (this.enemy as any).isGuarding = true; // le indicamos que ya está cubriéndose
-
-        // Tras 300 ms, volvemos a “idle”:
-        this.time.delayedCall(300, () => {
-          (this.enemy as any).isGuarding = false;
-          (this.enemy as any).guardState = "none";
-          this.enemy.play("enemy_idle", true);
-        });
-      },
-    });
 
     // 6️⃣ — Overlap: cualquier HitBox del grupo golpea al enemigo
     this.physics.add.overlap(this.hitGroup, this.enemy, (objA, objB) => {
