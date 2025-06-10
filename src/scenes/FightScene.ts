@@ -325,10 +325,6 @@ export default class FightScene extends Phaser.Scene {
       frameRate: 8,
       repeat: 0,
     });
-    console.log(
-      "Player punch animation exists?",
-      this.anims.exists("player_punch")
-    );
     this.anims.create({
       key: "player_kick_light",
       frames: this.anims.generateFrameNumbers("player_kick_soft", {
