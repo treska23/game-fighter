@@ -182,6 +182,7 @@ export default class FightScene extends Phaser.Scene {
           fontSize: '32px',
           color: '#ffffff',
         }).setOrigin(0.5);
+
         RoundManager.enemyWins += 1;
         const next = () => {
           if (RoundManager.enemyWins >= 2) {
@@ -210,6 +211,7 @@ export default class FightScene extends Phaser.Scene {
           fontSize: '32px',
           color: '#ffffff',
         }).setOrigin(0.5);
+
         RoundManager.playerWins += 1;
         const next = () => {
           if (RoundManager.playerWins >= 2) {
@@ -324,6 +326,7 @@ export default class FightScene extends Phaser.Scene {
       },
     });
   }
+
 
   private createPlayerAnimations(): void {
     this.anims.create({
