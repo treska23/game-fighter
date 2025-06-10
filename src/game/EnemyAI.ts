@@ -4,9 +4,12 @@ export type EnemyDecision = 'chase' | 'attack' | 'jump';
 declare const process: { env?: Record<string, string | undefined> } | undefined;
 
 /**
- * Queries OpenAI for the next enemy action. Returns `null` if the request fails
- * or no valid action is found. The function expects an API key in the
- * `OPENAI_API_KEY` environment variable.
+ * Queries OpenAI for the next enemy action.
+ *
+ * If `OPENAI_API_KEY` is not configured, the function logs a warning and
+ * immediately returns `'chase'` as a sensible default. When the key is
+ * configured, `null` is returned only if the request fails or no valid action
+ * is found.
  */
 export async function requestEnemyAction(
   context: { distance: number }
@@ -14,7 +17,7 @@ export async function requestEnemyAction(
   const apiKey = process?.env?.OPENAI_API_KEY;
   if (!apiKey) {
     console.warn('OPENAI_API_KEY not configured');
-    return null;
+    return 'chase';
   }
 
   const controller = new AbortController();
