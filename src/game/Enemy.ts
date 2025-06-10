@@ -203,7 +203,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         break;
     }
 
-    console.log("Animación de ataque:", animKey);
+    // console.log removed: the selected animation is now internally handled
 
     // Nos aseguramos de capturar el fin de la animación antes de reproducirla
     this.once(
@@ -399,7 +399,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       !this.isAttacking &&
       !this.isGuarding
     ) {
-      console.log("Decido cubrir", incoming);
+      // eliminated debug log for guarding decisions
       const shouldGuard =
         Phaser.Math.Between(0, 100) < this.guardChance &&
         incoming !== this.patternWeakness;
