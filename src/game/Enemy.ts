@@ -6,7 +6,7 @@ import type { HitData } from "./HitBox";
 import { requestEnemyAction, type EnemyDecision } from "./EnemyAI";
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
-  private speed = 160; // dificultad aumentada otro 25%
+  private speed = 200; // estilo M. Bison, mucho más rápido
   public health: number;
   public maxHealth: number;
 
@@ -31,12 +31,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private isKO = false;
   private pendingDecision: EnemyDecision | null = null;
   private lastDecisionTime = 0;
-  private damageMultiplier = 1.6;
+  private damageMultiplier = 2;
   private attackChance = 50;
   private jumpChance = 15;
-  private pattern: "aggressive" | "defensive" | "balanced" = "balanced";
+  private pattern: "aggressive" | "defensive" | "balanced" | "bison" = "balanced";
   private patternWeakness: "high" | "low" | null = null;
-  private intelligence = 2; // IA al 200%
+  private intelligence = 3; // IA aún más rápida (Bison)
   private decisionInterval = 1000;
 
   private nextPatternSwitch = 0;
@@ -85,8 +85,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   private choosePattern() {
-    const options = ["aggressive", "defensive", "balanced"] as const;
-    this.pattern = options[Phaser.Math.Between(0, options.length - 1)];
+    // Bison tiene un peso mayor en la selección de patrones
+    const rnd = Phaser.Math.Between(0, 100);
+    if (rnd < 80) {
+      this.pattern = "bison";
+    } else {
+      const options = ["aggressive", "defensive", "balanced"] as const;
+      this.pattern = options[Phaser.Math.Between(0, options.length - 1)];
+    }
+
     switch (this.pattern) {
       case "aggressive":
         this.guardChance = 25;
@@ -100,6 +107,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.jumpChance = 10;
         this.patternWeakness = "low";
         break;
+      case "bison":
+        // Patrón inspirado en M. Bison: presión constante y gran defensa
+        this.guardChance = 95;
+        this.attackChance = 95;
+        this.jumpChance = 60;
+        this.patternWeakness = "low";
+        break;
+
       default:
         this.guardChance = 60;
         this.attackChance = 50;
@@ -111,8 +126,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.guardChance = Math.min(100, Math.round(this.guardChance * this.intelligence));
     this.attackChance = Math.min(100, Math.round(this.attackChance * this.intelligence));
     this.jumpChance = Math.min(100, Math.round(this.jumpChance * this.intelligence));
-
-
     this.nextPatternSwitch = this.scene.time.now + Phaser.Math.Between(4000, 7000);
   }
 
@@ -342,7 +355,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   public update(_time: number, _delta: number) {
     if (this.isKO) return;
-    this.isCrouching = false;
+    // no reiniciamos isCrouching aquí para que los hitboxes puedan detectar
+    // correctamente si el enemigo sigue agachado durante este frame
+
     const current = this.anims.currentAnim?.key;
     if (current?.startsWith("enemy_hit") || current === "enemy_ko") return;
 

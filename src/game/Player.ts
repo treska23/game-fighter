@@ -22,7 +22,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public isGuarding = false;
   public isCrouching = false;
   private damageMultiplier = 0.5; // daño reducido
-
   private isKO = false;
 
   constructor(
@@ -215,9 +214,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     const body = this.body as Phaser.Physics.Arcade.Body;
 
-    this.isGuarding = false;
-    this.isCrouching = false;
-    this.guardState = "none";
+    // El estado de guardia/crouch se actualizará más abajo según la entrada
+    // para evitar ventanas en las que la detección de golpes no refleje la
+    // postura real del jugador.
+
 
     if (this.attackState === "attack") {
       return;
@@ -270,6 +270,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.anims.play("player_guard_low", true);
       } else {
         this.guardState = "high";
+        this.isCrouching = false;
+
         this.anims.play("player_guard_high", true);
       }
 
@@ -294,12 +296,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (down) {
       this.setVelocityX(0);
       this.isCrouching = true;
+      this.isGuarding = false;
+      this.guardState = "none";
       this.anims.play("player_down", true);
       return;
     }
 
     /* 7 ── IDLE ─────────────────────────────────────────────────── */
     this.setVelocityX(0);
+    this.isCrouching = false;
+    this.isGuarding = false;
+    this.guardState = "none";
     this.anims.play("player_idle", true);
   }
 }
