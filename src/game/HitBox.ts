@@ -91,7 +91,8 @@ export class HitBox extends Phaser.GameObjects.Zone {
     }
 
     const finalDamage = height === "high" ? Math.round(damage * 0.5) : damage;
-    target.takeDamage(finalDamage, hitStun);
+    const extraStun = height === "high" ? 80 : 0;
+    target.takeDamage(finalDamage, hitStun + extraStun);
     
     if ((target as any).health === 0) {
       target.setVelocity(0, 0);

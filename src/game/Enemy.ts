@@ -222,6 +222,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     // Reproducimos animación de ataque (asegúrate de tenerla creada en createAnimations)
     this.play(animKey, true);
+    const animDuration = this.anims.get(animKey)?.duration ?? 150;
 
     // ↓ Creamos la HitBox justo delante del enemigo ↓
     const dir = this.flipX ? -1 : 1;
@@ -250,13 +251,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     hb.setDepth(10);
     this.hitGroup.add(hb);
 
-    // Destruimos la HitBox tras 150 ms si aún existe
-    this.scene.time.delayedCall(150, () => {
+    // Destruimos la HitBox al terminar la animación
+    this.scene.time.delayedCall(animDuration, () => {
       if (hb.active) hb.destroy();
     });
 
     // Fallback por si la animación se interrumpe
-    this.scene.time.delayedCall(150, () => {
+    this.scene.time.delayedCall(animDuration + 50, () => {
       if (this.aiState === "attack") {
         this.aiState = "chase";
         this.isAttacking = false;
@@ -538,9 +539,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       key: "enemy_punch",
       frames: anims.generateFrameNumbers("detective_punch_right", {
         start: 0,
-        end: 0,
+        end: 1,
       }),
-      frameRate: 10,
+      frameRate: 6,
       repeat: 0,
     });
 
