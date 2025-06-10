@@ -6,7 +6,7 @@ import type { HitData } from "./HitBox";
 import { requestEnemyAction, type EnemyDecision } from "./EnemyAI";
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
-  private speed = 160; // dificultad aumentada otro 25%
+  private speed = 200; // estilo M. Bison, mucho más rápido
   public health: number;
   public maxHealth: number;
 
@@ -31,16 +31,29 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private isKO = false;
   private pendingDecision: EnemyDecision | null = null;
   private lastDecisionTime = 0;
-  private damageMultiplier = 1.6;
+  private damageMultiplier = 2;
   private attackChance = 50;
   private jumpChance = 15;
-  private pattern: "aggressive" | "defensive" | "balanced" = "balanced";
+  private pattern: "aggressive" | "defensive" | "balanced" | "bison" = "balanced";
   private patternWeakness: "high" | "low" | null = null;
-  private intelligence = 2; // IA al 200%
+  private intelligence = 3; // IA aún más rápida (Bison)
   private decisionInterval = 1000;
 
-  private nextPatternSwitch = 0;
-  constructor(
+    // Bison tiene un peso mayor en la selección de patrones
+    const rnd = Phaser.Math.Between(0, 100);
+    if (rnd < 80) {
+      this.pattern = "bison";
+    } else {
+      const options = ["aggressive", "defensive", "balanced"] as const;
+      this.pattern = options[Phaser.Math.Between(0, options.length - 1)];
+    }
+      case "bison":
+        // Patrón inspirado en M. Bison: presión constante y gran defensa
+        this.guardChance = 95;
+        this.attackChance = 95;
+        this.jumpChance = 60;
+        this.patternWeakness = "low";
+        break;
     scene: Phaser.Scene,
     x: number,
     y: number,
