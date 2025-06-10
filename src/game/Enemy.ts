@@ -7,7 +7,6 @@ import { requestEnemyAction, type EnemyDecision } from "./EnemyAI";
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private speed = 160; // dificultad aumentada otro 25%
-
   public health: number;
   public maxHealth: number;
 
@@ -33,11 +32,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private pendingDecision: EnemyDecision | null = null;
   private lastDecisionTime = 0;
   private damageMultiplier = 1.6;
-
   private attackChance = 50;
   private jumpChance = 15;
   private pattern: "aggressive" | "defensive" | "balanced" = "balanced";
   private patternWeakness: "high" | "low" | null = null;
+  private intelligence = 2; // IA al 200%
+  private decisionInterval = 1000;
+
   private nextPatternSwitch = 0;
   constructor(
     scene: Phaser.Scene,
@@ -75,6 +76,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.hitGroup = scene.physics.add.group({ runChildUpdate: true });
     }
 
+    this.decisionInterval = 1000 / this.intelligence;
     this.choosePattern();
   }
 
@@ -105,6 +107,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.patternWeakness = null;
         break;
     }
+    // escalar por inteligencia y limitar al 100%
+    this.guardChance = Math.min(100, Math.round(this.guardChance * this.intelligence));
+    this.attackChance = Math.min(100, Math.round(this.attackChance * this.intelligence));
+    this.jumpChance = Math.min(100, Math.round(this.jumpChance * this.intelligence));
+
+
     this.nextPatternSwitch = this.scene.time.now + Phaser.Math.Between(4000, 7000);
   }
 
@@ -355,15 +363,18 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     // Periodically query OpenAI for a suggested action
-    if (_time - this.lastDecisionTime > 1000 && !this.pendingDecision) {
+    if (_time - this.lastDecisionTime > this.decisionInterval && !this.pendingDecision) {
       this.lastDecisionTime = _time;
       requestEnemyAction({ distance: dist }).then((act) => {
         if (act) this.pendingDecision = act;
       });
     }
 
-    // Orientación hacia el jugador cada frame, sin afectar animaciones
-    this.setFlipX(dx < 0);
+    // Orientación hacia el jugador cada frame, pero evita girar en mitad de un
+    // ataque o de una guardia para que no se corten las animaciones
+    if (!this.isAttacking && !this.isGuarding) {
+      this.setFlipX(dx < 0);
+    }
 
     const incoming = this.getIncomingHitHeight();
     if (
