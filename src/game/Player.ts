@@ -218,6 +218,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // para evitar ventanas en las que la detección de golpes no refleje la
     // postura real del jugador.
 
+
     if (this.attackState === "attack") {
       return;
     }
@@ -270,6 +271,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       } else {
         this.guardState = "high";
         this.isCrouching = false;
+
         this.anims.play("player_guard_high", true);
       }
 

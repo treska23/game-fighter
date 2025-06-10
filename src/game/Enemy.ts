@@ -38,6 +38,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private patternWeakness: "high" | "low" | null = null;
   private intelligence = 3; // IA aún más rápida (Bison)
   private decisionInterval = 1000;
+
   private nextPatternSwitch = 0;
   constructor(
     scene: Phaser.Scene,
@@ -92,6 +93,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       const options = ["aggressive", "defensive", "balanced"] as const;
       this.pattern = options[Phaser.Math.Between(0, options.length - 1)];
     }
+
     switch (this.pattern) {
       case "aggressive":
         this.guardChance = 25;
@@ -112,6 +114,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.jumpChance = 60;
         this.patternWeakness = "low";
         break;
+
       default:
         this.guardChance = 60;
         this.attackChance = 50;
@@ -119,12 +122,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.patternWeakness = null;
         break;
     }
-
     // escalar por inteligencia y limitar al 100%
     this.guardChance = Math.min(100, Math.round(this.guardChance * this.intelligence));
     this.attackChance = Math.min(100, Math.round(this.attackChance * this.intelligence));
     this.jumpChance = Math.min(100, Math.round(this.jumpChance * this.intelligence));
-
     this.nextPatternSwitch = this.scene.time.now + Phaser.Math.Between(4000, 7000);
   }
 
@@ -356,6 +357,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.isKO) return;
     // no reiniciamos isCrouching aquí para que los hitboxes puedan detectar
     // correctamente si el enemigo sigue agachado durante este frame
+
     const current = this.anims.currentAnim?.key;
     if (current?.startsWith("enemy_hit") || current === "enemy_ko") return;
 
