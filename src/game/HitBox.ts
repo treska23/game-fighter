@@ -94,10 +94,6 @@ export class HitBox extends Phaser.GameObjects.Zone {
       target.setVelocity(0, 0);
     }
 
-    if ((target as any).health === 0) {
-      target.setVelocity(0, 0);
-    }
-
     this.destroy();
   }
 }
