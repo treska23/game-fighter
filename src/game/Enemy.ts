@@ -7,6 +7,7 @@ import { requestEnemyAction, type EnemyDecision } from "./EnemyAI";
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private speed = 160; // dificultad aumentada otro 25%
+
   public health: number;
   public maxHealth: number;
 
@@ -32,6 +33,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private pendingDecision: EnemyDecision | null = null;
   private lastDecisionTime = 0;
   private damageMultiplier = 1.6;
+
   private attackChance = 50;
   private jumpChance = 15;
   private pattern: "aggressive" | "defensive" | "balanced" = "balanced";
