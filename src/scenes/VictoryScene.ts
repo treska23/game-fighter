@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import RoundManager from '../game/RoundManager';
 
 export default class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -14,6 +15,17 @@ export default class VictoryScene extends Phaser.Scene {
         color: '#ffffff',
         fontSize: '16px',
       })
+      .setOrigin(0.5);
+    this.add
+      .text(
+        400,
+        340,
+        `Rounds: ${RoundManager.playerWins}-${RoundManager.enemyWins}`,
+        {
+          color: '#ffffff',
+          fontSize: '14px',
+        }
+      )
       .setOrigin(0.5);
   }
 }
