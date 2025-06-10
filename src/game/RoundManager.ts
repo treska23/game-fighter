@@ -12,4 +12,13 @@ export default class RoundManager {
   static nextRound() {
     this.round += 1;
   }
+
+  static hasPlayerLost() {
+    return this.enemyWins >= 2;
+  }
+
+  static hasPlayerWon() {
+    return this.playerWins >= 2;
+  }
+
 }
