@@ -14,6 +14,8 @@ export interface HitData {
   height: "high" | "mid" | "low";
   /** Quién lanzó el golpe (player | enemy) */
   owner: "player" | "enemy";
+  /** Tipo de ataque: punch o kick (opcional) */
+  type?: "punch" | "kick";
 }
 
 

@@ -173,6 +173,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         damage: 6,
         hitStun: 120,
         knockBack: new Phaser.Math.Vector2(dir * 40, 0),
+        type: "punch",
       });
       return true;
     }
@@ -182,6 +183,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         damage: 10,
         hitStun: 180,
         knockBack: new Phaser.Math.Vector2(dir * 40, 0),
+        type: "kick",
       });
       return true;
     }
@@ -194,6 +196,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           knockBack: new Phaser.Math.Vector2(dir * 10, -200),
           hitStun: 300,
           height: "mid",
+          type: "kick",
         });
         return true;
       } else {
@@ -202,6 +205,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           damage: 14,
           knockBack: new Phaser.Math.Vector2(dir * 30, 0),
           hitStun: 260,
+          type: "kick",
         });
         return true;
       }
