@@ -50,9 +50,16 @@ export class HitBox extends Phaser.GameObjects.Zone {
     target: Phaser.Physics.Arcade.Sprite & {
       takeDamage: (dmg: number, stun?: number) => void;
       guardState?: "none" | "high" | "low";
+      isCrouching?: boolean;
     }
   ) {
     const { damage, knockBack, hitStun, guardStun, height } = this.hitData;
+
+    const crouching = !!(target as any).isCrouching;
+    if (crouching && height !== "low") {
+      this.destroy();
+      return;
+    }
 
     /* 1. ── ¿El objetivo está guardando? ─────────────────────────── */
     let blocked = false;
