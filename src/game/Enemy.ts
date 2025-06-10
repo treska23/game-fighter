@@ -179,7 +179,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     // ── ① Elegir un ataque aleatorio ────────────────────────────
     // Lista de tipos de ataque que hemos definido en createAnimations:
-    const posiblesAtaques: Array<"punch" | "kick_light" | "kick_tight"> = lowAttack
+     const posiblesAtaques: Array<"punch" | "kick_light" | "kick_tight"> = lowAttack
       ? ["kick_light"]
       : ["punch", "kick_light", "kick_tight"];
 
@@ -215,7 +215,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           this.scene.time.delayedCall(500, () => {
             this.attackCooldown = false;
           });
-          if (lowAttack) this.isCrouching = false;
           this.aiState = "chase";
         }
       }
@@ -235,7 +234,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       knockBack: new Phaser.Math.Vector2(dir * 50, -100),
       hitStun: 200,
       guardStun: 8,
-      height: lowAttack ? "low" : "mid",
+      height: "mid",
       owner: "enemy",
     };
 
@@ -399,7 +398,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       !this.isAttacking &&
       !this.isGuarding
     ) {
-      console.log("Decido cubrir", incoming);
       const shouldGuard =
         Phaser.Math.Between(0, 100) < this.guardChance &&
         incoming !== this.patternWeakness;
