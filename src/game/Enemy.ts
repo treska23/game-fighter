@@ -236,6 +236,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       guardStun: 8,
       height: "mid",
       owner: "enemy",
+      type: tipoSeleccionado === "punch" ? "punch" : "kick",
     };
 
     const hb = new HitBox(
@@ -287,6 +288,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         guardStun: 10,
         height: "mid",
         owner: "enemy",
+        type: "kick",
       };
       const hb = new HitBox(
         this.scene,

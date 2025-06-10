@@ -78,26 +78,6 @@ export default class FightScene extends Phaser.Scene {
 
     this.physics.add.collider(this.enemy, platforms);
 
-    this.enemy.onHit(() => {
-      // Aquí pones la reacción extra al impactar:
-      // — Sonido de golpe —
-      this.sound.play('hit_sound');
-
-      // — Partículas de efecto —
-      /* const p = this.add.particles("sangre");
-  p.createEmitter({
-    x: this.player.x,
-    y: this.player.y - 20,
-    speed: { min: -100, max: 100 },
-    lifespan: 300,
-    quantity: 5,
-    scale: { start: 1, end: 0 },
-    blendMode: "ADD"
-  }).explode(10, this.player.x, this.player.y - 20); */
-
-      // — Cámara tiembla un poquito —
-      this.cameras.main.shake(100, 0.01);
-    });
 
     this.time.addEvent({
       delay: 500, // esperar medio segundo tras crear enemy
@@ -130,6 +110,7 @@ export default class FightScene extends Phaser.Scene {
 
       if (hit.hitData.owner !== "player") return; // ← filtro
       hit.applyTo(enem);
+      this.playHitEffects(hit);
     });
 
     // 7️⃣ — Overlap: cualquier HitBox del grupo golpea al jugador
@@ -139,7 +120,7 @@ export default class FightScene extends Phaser.Scene {
 
       if (hit.hitData.owner !== "enemy") return;
       hit.applyTo(plyr);
-      this.enemy.triggerHit();
+      this.playHitEffects(hit);
     });
 
     // 7️⃣ — HUD de vida
@@ -270,6 +251,14 @@ export default class FightScene extends Phaser.Scene {
     (this.enemy as Enemy).update(time, delta);
   }
 
+  private playHitEffects(hit: HitBox) {
+    this.sound.play('hit_sound');
+    const { type, height } = hit.hitData as any;
+    if (type === 'kick' || (type === 'punch' && height === 'high')) {
+      this.cameras.main.shake(100, 0.01);
+    }
+  }
+
   private createPlayerAnimations(): void {
     this.anims.create({
       key: "player_idle",
@@ -325,10 +314,6 @@ export default class FightScene extends Phaser.Scene {
       frameRate: 8,
       repeat: 0,
     });
-    console.log(
-      "Player punch animation exists?",
-      this.anims.exists("player_punch")
-    );
     this.anims.create({
       key: "player_kick_light",
       frames: this.anims.generateFrameNumbers("player_kick_soft", {
