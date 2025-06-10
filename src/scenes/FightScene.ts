@@ -36,6 +36,7 @@ export default class FightScene extends Phaser.Scene {
   create(): void {
     this.canMove = false;
     this.ended = false;
+
     // 0️⃣ — Carga animaciones (solo una vez)
     Enemy.createAnimations(this.anims);
     this.createPlayerAnimations();
@@ -186,6 +187,7 @@ export default class FightScene extends Phaser.Scene {
         RoundManager.enemyWins += 1;
         const next = () => {
           if (RoundManager.hasPlayerLost()) {
+
             this.scene.start('GameOverScene');
           } else {
             RoundManager.nextRound();
@@ -214,6 +216,7 @@ export default class FightScene extends Phaser.Scene {
         RoundManager.playerWins += 1;
         const next = () => {
           if (RoundManager.hasPlayerWon()) {
+
             this.scene.start('VictoryScene');
           } else {
             RoundManager.nextRound();
@@ -325,7 +328,6 @@ export default class FightScene extends Phaser.Scene {
       },
     });
   }
-
   private createPlayerAnimations(): void {
     this.anims.create({
       key: "player_idle",
