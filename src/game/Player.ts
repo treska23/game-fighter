@@ -21,6 +21,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public guardState: "none" | "high" | "low" = "none";
   public isGuarding = false;
   public isCrouching = false;
+  private damageMultiplier = 0.5; // daño reducido
   private isKO = false;
 
   constructor(
@@ -122,13 +123,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     const yOffset = inAir ? -32 /* más alto */ : -16; /* suelo */
 
+    const finalHit = { ...defaultHit, ...hitData } as HitData;
+    finalHit.damage = Math.round(finalHit.damage * this.damageMultiplier);
+
     const hb = new HitBox(
       this.scene,
       this.x + dir * 24,
       this.y - yOffset,
       hitboxWidth,
       24,
-      { ...defaultHit, ...hitData }
+      finalHit
     );
     // hb.setFillStyle(0xff0000, 0.3); // semitransparente (removed, not available on HitBox)
     hb.setDepth(10);

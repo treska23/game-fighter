@@ -11,6 +11,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   public health: number;
   public maxHealth: number;
 
+  private intelligence = 2; // IA al 200%
+  private decisionInterval = 1000;
+    this.decisionInterval = 1000 / this.intelligence;
+
+    // escalar por inteligencia y limitar al 100%
+    this.guardChance = Math.min(100, Math.round(this.guardChance * this.intelligence));
+    this.attackChance = Math.min(100, Math.round(this.attackChance * this.intelligence));
+    this.jumpChance = Math.min(100, Math.round(this.jumpChance * this.intelligence));
+
   private aiState: "chase" | "attack" = "chase"; // ① Estado interno
   private attackCooldown = false; // ③ Evita spamear ataques
   private hitGroup: Phaser.Physics.Arcade.Group; // ④ Grupo donde crearemos HitBoxes
@@ -329,7 +338,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         return hb.hitData.height;
       }
     }
-    return null;
+    if (_time - this.lastDecisionTime > this.decisionInterval && !this.pendingDecision) {
   }
 
   public update(_time: number, _delta: number) {
