@@ -21,6 +21,7 @@ export default class FightScene extends Phaser.Scene {
   private playerHealthText!: Phaser.GameObjects.Text;
   private enemyHealthText!: Phaser.GameObjects.Text;
   private ended = false;
+  private canMove = false;
 
   // Le decimos a TS que enemy tendrá también health, maxHealth y takeDamage()
 
@@ -33,6 +34,7 @@ export default class FightScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.canMove = false;
     // 0️⃣ — Carga animaciones (solo una vez)
     Enemy.createAnimations(this.anims);
     this.createPlayerAnimations();
@@ -162,6 +164,8 @@ export default class FightScene extends Phaser.Scene {
       this.enemy.maxHealth
     );
 
+    this.startRoundCountdown();
+
     this.player.on("healthChanged", (hp: number) => {
       this.drawHealthBar(
         this.playerHealthBar,
@@ -173,6 +177,12 @@ export default class FightScene extends Phaser.Scene {
       this.playerHealthText.setText(`${hp}`);
       if (hp <= 0 && !this.ended) {
         this.ended = true;
+        this.canMove = false;
+        this.add.text(400, 300, 'You Lose', {
+          fontSize: '32px',
+          color: '#ffffff',
+        }).setOrigin(0.5);
+
         RoundManager.enemyWins += 1;
         const next = () => {
           if (RoundManager.enemyWins >= 2) {
@@ -196,6 +206,12 @@ export default class FightScene extends Phaser.Scene {
       this.enemyHealthText.setText(`${hp}`);
       if (hp <= 0 && !this.ended) {
         this.ended = true;
+        this.canMove = false;
+        this.add.text(400, 300, 'You Win', {
+          fontSize: '32px',
+          color: '#ffffff',
+        }).setOrigin(0.5);
+
         RoundManager.playerWins += 1;
         const next = () => {
           if (RoundManager.playerWins >= 2) {
@@ -273,6 +289,7 @@ export default class FightScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (!this.canMove) return;
     this.player.update(time, delta);
     (this.enemy as Enemy).update(time, delta);
   }
@@ -284,6 +301,32 @@ export default class FightScene extends Phaser.Scene {
       this.cameras.main.shake(100, 0.01);
     }
   }
+
+  private startRoundCountdown() {
+    this.canMove = false;
+    const countdown = this.add.text(400, 260, '3', {
+      fontSize: '32px',
+      color: '#ffffff',
+    }).setOrigin(0.5);
+
+    let value = 3;
+    const evt = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        value -= 1;
+        if (value > 0) {
+          countdown.setText(String(value));
+        } else {
+          evt.remove(false);
+          countdown.setText('Fight!');
+          this.canMove = true;
+          this.time.delayedCall(500, () => countdown.destroy());
+        }
+      },
+    });
+  }
+
 
   private createPlayerAnimations(): void {
     this.anims.create({

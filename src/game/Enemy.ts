@@ -203,7 +203,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         break;
     }
 
-    console.log("Animación de ataque:", animKey);
 
     // Nos aseguramos de capturar el fin de la animación antes de reproducirla
     this.once(
