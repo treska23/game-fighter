@@ -165,24 +165,23 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
    *  ② Método que inicia el ataque
    *  ========================================
    */
-  private startAttack() {
+  private startAttack(lowAttack = false) {
     // Si ya estamos atacando o en cooldown, no hacemos nada
     if (this.attackCooldown || this.isAttacking) {
       return;
     }
     this.isAttacking = true;
     this.attackCooldown = true;
+    if (lowAttack) this.isCrouching = true;
 
     // Paramos el movimiento horizontal
     (this.body as Phaser.Physics.Arcade.Body).setVelocityX(0);
 
     // ── ① Elegir un ataque aleatorio ────────────────────────────
     // Lista de tipos de ataque que hemos definido en createAnimations:
-    const posiblesAtaques: Array<"punch" | "kick_light" | "kick_tight"> = [
-      "punch",
-      "kick_light",
-      "kick_tight",
-    ];
+    const posiblesAtaques: Array<"punch" | "kick_light" | "kick_tight"> = lowAttack
+      ? ["kick_light"]
+      : ["punch", "kick_light", "kick_tight"];
 
     // Elegir un índice al azar entre 0 y 2:
     const idx = Phaser.Math.Between(0, posiblesAtaques.length - 1);
@@ -216,6 +215,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           this.scene.time.delayedCall(500, () => {
             this.attackCooldown = false;
           });
+          if (lowAttack) this.isCrouching = false;
           this.aiState = "chase";
         }
       }
@@ -235,14 +235,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       knockBack: new Phaser.Math.Vector2(dir * 50, -100),
       hitStun: 200,
       guardStun: 8,
-      height: "mid",
+      height: lowAttack ? "low" : "mid",
       owner: "enemy",
     };
 
     const hb = new HitBox(
       this.scene,
       this.x + dir * 30, // ③ Posición X: un poco delante según flipX
-      this.y - 10, // ④ Posición Y: centrado verticalmente o ajustar según sprite
+      lowAttack ? this.y : this.y - 10, // ④ Posición Y
       30, // ⑤ Ancho de hitbox
       20, // ⑥ Alto de hitbox
       defaultHit
@@ -260,6 +260,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       if (this.aiState === "attack") {
         this.aiState = "chase";
         this.isAttacking = false;
+        if (lowAttack) this.isCrouching = false;
       }
     });
   }
@@ -499,7 +500,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           if (this.attackCooldown) {
             this.aiState = "chase";
           } else {
-            this.startAttack();
+            const targetCrouching = (this.target as any).isCrouching;
+            this.startAttack(targetCrouching);
           }
         }
         break;
