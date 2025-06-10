@@ -303,6 +303,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     const dist = Math.abs(dx);
     const dir = Math.sign(dx);
 
+    // Orientación hacia el jugador cada frame, sin afectar animaciones
+    this.setFlipX(dx < 0);
+
     const incoming = this.getIncomingHitHeight();
     if (
       incoming &&
@@ -361,7 +364,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
           if (this.anims.currentAnim?.key !== "enemy_walk") {
             this.play("enemy_walk", true);
           }
-          this.setFlipX(dir < 0);
         }
 
         /* 2-B   decidir atacar o saltar                                    */
